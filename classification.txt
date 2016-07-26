@@ -1,0 +1,5 @@
+# Clean data
+FACTOR		EXPOSURE		CONDITION
+RiskClass	a			True
+
+RiskClass	b			pd.isnull(RiskClass)

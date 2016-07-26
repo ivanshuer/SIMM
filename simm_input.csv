@@ -1,0 +1,17 @@
+ProductClass,RiskType,Qualifier,Bucket,Label1,Label2,Amount,AmoutCurrency,Amount
+RatesFX,Risk_IRCurve,USD,1,5y,,-4881,USD,-4881
+RatesFX,Risk_Inflation,USD,,,,-6968,USD,-6968
+Credit,Risk_CreditQ,ISIN:X51081333921,3,5y,,4939,USD,4939
+Equity,Risk_Equity,FTSE100,11,,,84498,USD,84498
+Equity,Risk_EquityVol,FTSE100,11,1y,,59578,USD,59578
+Commodity,Risk_Commodity,Precious Metals Gold,12,,,66124,USD,66124
+Commodity,Risk_CommodityVol,Precious Metals Gold,12,3m,,23754,USD,23754
+RatesFX,Risk_FX,EUR,,,,-230801,USD,-230801
+RatesFX,Risk_FX,USD,,,,80417,USD,99765
+RatesFX,Risk_IRVol,GBP,,,,150384,USD,150384
+RatesFX,Risk_IRVol,USD,,1y,,1640,USD,1640
+RatesFX,Risk_IRVol,USD,,2y,,97420,USD,97420
+RatesFX,Risk_IRVol,USD,,3y,,108502,USD,108502
+RatesFX,Risk_IRVol,USD,,5y,,185665,USD,185665
+RatesFX,Risk_IRVol,USD,,10y,,76930,USD,76930
+RatesFX,Risk_IRVol,USDJPY,,3m,,19768,USD,19768
