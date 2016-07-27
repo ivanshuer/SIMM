@@ -3,8 +3,10 @@ import logging
 import os
 import numpy as np
 import sys
-import simm_params
+import params
+import simm_lib
 import re
+import ir_risk
 
 ##############################
 # Setup Logging Configuration
@@ -23,17 +25,22 @@ if not len(logger.handlers):
 def main():
     logger.info('Main program')
 
-    print 'Hello World'
-
     input_file = 'simm_input.csv'
     trades_pos = pd.read_csv(input_file, dtype = {'Bucket': str, 'Label1': str, 'Label2': str, 'Amount': np.float64, 'AmountUSD': np.float64})
 
-    with open('classification.txt', 'r') as f:
-        data = f.readlines()
+    trades_pos = simm_lib.risk_classification(trades_pos, params)
+    trades_pos_no_classification = trades_pos[trades_pos.reason != 'Good'].copy()
+    trades_pos = trades_pos[trades_pos.reason == 'Good'].copy()
 
-    data_clean = []
-    for line in data:
-        data_clean.append(re.sub('^#.*', '', line))
+    trades_pos_IR = trades_pos[trades_pos.RiskClass == 'IR'].copy()
+    ir = ir_risk.InterestRate()
+    trades_pos_IR = ir.prep_data(trades_pos_IR, params)
+
+    trades_pos_all = pd.concat([trades_pos_IR, trades_pos_no_classification])
+    trades_pos_all.to_csv('all_trades_pos.csv', index=False)
+
+    trades_simm = trades_pos_all[trades_pos_all.reason == 'Good'].copy()
+
 
     return
 

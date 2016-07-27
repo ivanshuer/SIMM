@@ -1,4 +1,5 @@
-ProductClass,RiskType,Qualifier,Bucket,Label1,Label2,Amount,AmoutCurrency,Amount
+ProductClass,RiskType,Qualifier,Bucket,Label1,Label2,Amount,AmoutCurrency,AmountUSD
+RatesFX,Risk_IRCurve,USD,1,1y,Prime,-4500,USD,-4500
 RatesFX,Risk_IRCurve,USD,1,5y,,-4881,USD,-4881
 RatesFX,Risk_Inflation,USD,,,,-6968,USD,-6968
 Credit,Risk_CreditQ,ISIN:X51081333921,3,5y,,4939,USD,4939
@@ -15,3 +16,6 @@ RatesFX,Risk_IRVol,USD,,3y,,108502,USD,108502
 RatesFX,Risk_IRVol,USD,,5y,,185665,USD,185665
 RatesFX,Risk_IRVol,USD,,10y,,76930,USD,76930
 RatesFX,Risk_IRVol,USDJPY,,3m,,19768,USD,19768
+RatesFX,Risk_IRCurve,USD,1,,,-4881,USD,-4881
+RatesFX,Risk_IRCurve1,USD,1,5y,,-4881,USD,-4881
+RatesFX,Risk_IRCurve,EUR,1,1y,Prime,-4881,USD,-4881
