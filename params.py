@@ -12,6 +12,7 @@ Equity = ['Risk_Equity', 'Risk_EquityVol']
 FX = ['Risk_FX', 'Risk_FXVol']
 Commodity = ['Risk_Commodity', 'Risk_CommodityVol']
 
+IR_Bucket = ['1', '2', '3']
 IR_tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']
 IR_sub_curve = ['OIS', 'Libor1m', 'Libor3m', 'Libor6m', 'Libor12m']
 IR_USD_sub_curve = IR_sub_curve + ['Prime']
