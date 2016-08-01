@@ -1,4 +1,5 @@
 import pandas as pd
+
 config_folder = 'config'
 
 Product = ['RatesFX', 'Credit', 'Equity', 'Commodity']
