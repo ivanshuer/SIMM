@@ -627,7 +627,7 @@ def delta_margin_risk_factor(pos, params):
         delta_margin = delta_margin + pos_delta_residual.WeightDelta
 
     ret_mm = pos_delta[['ProductClass', 'RiskClass']].copy()
-    ret_mm['DeltaMargin'] = delta_margin
+    ret_mm['Margin'] = delta_margin
 
     return ret_mm
 
@@ -639,8 +639,9 @@ def delta_margin(pos, params):
 
     if len(pos_delta_margin):
         pos_delta_margin_gp = pos_delta_margin.groupby(['ProductClass', 'RiskClass'])
-        pos_delta_margin_gp = pos_delta_margin_gp.agg({'DeltaMargin': np.sum})
+        pos_delta_margin_gp = pos_delta_margin_gp.agg({'Margin': np.sum})
         pos_delta_margin_gp.reset_index(inplace=True)
+        pos_delta_margin_gp['MarginType'] = 'Delta'
 
     return pos_delta_margin_gp
 
