@@ -17,6 +17,9 @@ Equity = ['Risk_Equity', 'Risk_EquityVol']
 FX = ['Risk_FX', 'Risk_FXVol']
 Commodity = ['Risk_Commodity', 'Risk_CommodityVol']
 
+Delta_Factor = ['Risk_IRCurve', 'Risk_Inflation', 'Risk_CreditQ', 'Risk_CreditNonQ', 'Risk_Equity', 'Risk_FX', 'Risk_Commodity']
+Vega_Factor = ['Risk_IRVol', 'Risk_CreditVol', 'Risk_EquityVol', 'Risk_FXVol', 'Risk_CommodityVol']
+
 IR_Bucket = ['1', '2', '3']
 IR_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']
 IR_Sub_Curve = ['OIS', 'Libor1m', 'Libor3m', 'Libor6m', 'Libor12m']
@@ -35,11 +38,21 @@ CreditQ_Bucket = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
 CreditQ_Tenor = ['1y', '2y', '3y', '5y', '10y']
 CreditQ_Threshold = 1.0
 CreditQ_Weights = pd.read_csv('{0}/creditq_weights_params.csv'.format(config_folder))
+CreditQ_Rho_Agg_Same_IS = 0.98
+CreditQ_Rho_Agg_Diff_IS = 0.55
+CreditQ_Rho_Res_Same_IS = 0.5
+CreditQ_Rho_Res_Diff_IS = 0.5
+CreditQ_Corr = pd.read_csv('{0}/creditq_correlation_params.csv'.format(config_folder))
 
 CreditNonQ_Bucket = ['1', '2', 'Residual']
 CreditNonQ_Tenor = ['1y', '2y', '3y', '5y', '10y']
 CreditNonQ_Threshold = 1.0
 CreditNonQ_Weights = pd.read_csv('{0}/creditnonq_weights_params.csv'.format(config_folder))
+CreditNonQ_Rho_Agg_Same_IS = 0.6
+CreditNonQ_Rho_Agg_Diff_IS = 0.21
+CreditNonQ_Rho_Res_Same_IS = 0.5
+CreditNonQ_Rho_Res_Diff_IS = 0.5
+CreditNonQ_Corr = pd.read_csv('{0}/creditnonq_correlation_params.csv'.format(config_folder))
 
 Equity_Bucket = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'Residual']
 Equity_EM = ['1', '2', '3', '4', '9']
@@ -49,6 +62,8 @@ Equity_EM_Threshold = 1.0
 Equity_DEVELOPED_Threshold = 1.0
 Equity_INDEX_Threshold = 1.0
 Equity_Weights = pd.read_csv('{0}/equity_weights_params.csv'.format(config_folder))
+Equity_Rho = pd.read_csv('{0}/equity_in_bucket_correlation_params.csv'.format(config_folder))
+Equity_Corr = pd.read_csv('{0}/equity_correlation_params.csv'.format(config_folder))
 
 Commodity_Bucket = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16']
 Commodity_FUEL = ['1', '2', '3', '4', '5', '6', '7']
@@ -58,9 +73,12 @@ Commodity_FUEL_Threshold = 1.0
 Commodity_POWER_Threshold = 1.0
 Commodity_OTHER_Threshold = 1.0
 Commodity_Weights = pd.read_csv('{0}/commodity_weights_params.csv'.format(config_folder), dtype={'bucket': str})
+Commodity_Rho = pd.read_csv('{0}/commodity_in_bucket_correlation_params.csv'.format(config_folder), dtype={'bucket': str})
+Commodity_Corr = pd.read_csv('{0}/commodity_correlation_params.csv'.format(config_folder))
 
 FX_Threshold = 1.0
 FX_Weights = 0.079
+FX_Rho = 0.5
 
 
 

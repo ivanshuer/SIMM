@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import logging
 import math
+import shutil
 
 ##############################
 # Setup Logging Configuration
@@ -20,8 +21,10 @@ if not len(logger.handlers):
 def prep_output_directory(params):
     for prod in params.Product:
         output_path = '{0}\{1}'.format(os.getcwd(), prod)
-        if not os.path.exists(output_path):
-            os.mkdir(output_path)
+        if os.path.exists(output_path):
+            shutil.rmtree(output_path)
+
+        os.mkdir(output_path)
 
     for prod in params.Product:
         for risk in params.RiskType:
@@ -211,16 +214,16 @@ def prep_data(pos, params):
     pos_IR = prep_data_IR(pos_IR, params)
 
     pos_CreditQ = pos[pos.RiskClass == 'CreditQ'].copy()
-    pos_CreditQ = prep_data_IR(pos_CreditQ, params)
+    pos_CreditQ = prep_data_CreditQ(pos_CreditQ, params)
 
     pos_CreditNonQ = pos[pos.RiskClass == 'CreditNonQ'].copy()
-    pos_CreditNonQ = prep_data_IR(pos_CreditNonQ, params)
+    pos_CreditNonQ = prep_data_CreditNonQ(pos_CreditNonQ, params)
 
     pos_Equity = pos[pos.RiskClass == 'Equity'].copy()
-    pos_Equity = prep_data_IR(pos_Equity, params)
+    pos_Equity = prep_data_Equity(pos_Equity, params)
 
     pos_Commodity = pos[pos.RiskClass == 'Commodity'].copy()
-    pos_Commodity = prep_data_IR(pos_Commodity, params)
+    pos_Commodity = prep_data_Commodity(pos_Commodity, params)
 
     pos_FX = pos[pos.RiskClass == 'FX'].copy()
 
@@ -233,8 +236,10 @@ def net_sensitivities(pos, params):
         factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'Label2', 'RiskClass']
     elif risk_class in ['CreditQ', 'CreditNonQ']:
         factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'RiskClass']
-    else:
+    elif risk_class in ['Equity', 'Commodity']:
         factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'RiskClass']
+    elif risk_class == 'FX':
+        factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'RiskClass']
 
     pos_gp = pos.groupby(factor_group)
     pos_delta = pos_gp.agg({'AmountUSD': np.sum})
@@ -252,6 +257,7 @@ def find_factor_idx(tenor_factor, curve_factor, tenors, curves, risk_class):
                     return idx
                 else:
                     idx = idx + 1
+
     elif risk_class in ['CreditQ', 'CreditNonQ']:
         for tenor in tenors:
             if tenor_factor == tenor:
@@ -285,7 +291,7 @@ def build_risk_factors(pos_gp, params):
         for i, row in pos_gp.iterrows():
             idx = find_factor_idx(row['Label1'], [], params.CreditQ_Tenor, [], risk_class)
             if idx >= 0:
-                s[idx] = row['AmountUSD']
+                s[idx + i*len(params.CreditQ_Tenor)] = row['AmountUSD']
 
     elif risk_class == 'CreditNonQ':
         s = np.zeros(len(pos_gp.Qualifier.unique()) * len(params.CreditNonQ_Tenor))
@@ -293,7 +299,7 @@ def build_risk_factors(pos_gp, params):
         for i, row in pos_gp.iterrows():
             idx = find_factor_idx(row['Label1'], [], params.CreditNonQ_Tenor, [], risk_class)
             if idx >= 0:
-                s[idx] = row['AmountUSD']
+                s[idx+ i*len(params.CreditNonQ_Tenor)] = row['AmountUSD']
 
     else:
         s = np.zeros(len(pos_gp.Qualifier.unique()))
@@ -304,8 +310,8 @@ def build_risk_factors(pos_gp, params):
     return s
 
 def build_concentration_risk(pos_gp, params):
-    risk_class = pos_gp.RiskClass.unique()
-    bucket = pos_gp.Bucket.unique()
+    risk_class = pos_gp.RiskClass.unique()[0]
+    bucket = pos_gp.Bucket.unique()[0]
 
     f = lambda x: max(1, math.sqrt(abs(x) / Tb))
 
@@ -358,7 +364,7 @@ def build_concentration_risk(pos_gp, params):
     return CR
 
 def build_risk_weights(pos_gp, params):
-    risk_class = pos_gp.RiskClass.unique()
+    risk_class = pos_gp.RiskClass.unique()[0]
 
     if risk_class == 'IR':
         bucket = pd.DataFrame(pos_gp.Bucket.unique(), columns=['curr_type'])
@@ -401,7 +407,190 @@ def build_risk_weights(pos_gp, params):
 
     return RW
 
-def delta_margin_IR_risk_factor(pos, params):
+def build_in_bucket_correlation(pos_gp, params):
+    risk_class = pos_gp.RiskClass.unique()[0]
+    bucket = pos_gp.Bucket.unique()[0]
+
+    if risk_class == 'IR':
+        gp_curr = pos_gp.Qualifier.unique()[0]
+        curve = params.IR_Sub_Curve
+        if gp_curr == 'USD':
+            curve = params.IR_USD_Sub_Curve
+
+        fai = np.zeros((len(curve), len(curve)))
+        fai.fill(params.IR_Fai)
+        np.fill_diagonal(fai, 1)
+
+        rho = params.IR_Corr
+
+        Corr = np.kron(rho, fai)
+    else:
+        num_qualifiers = len(pos_gp.Qualifier.unique())
+
+        CR = build_concentration_risk(pos_gp, params)
+
+        F = np.zeros((len(CR), len(CR)))
+
+        for i in range(len(CR)):
+            for j in range(len(CR)):
+                CRi = CR[i]
+                CRj = CR[j]
+
+                F[i][j] = min(CRi, CRj) / max(CRi, CRj)
+
+        if risk_class in ['CreditQ', 'CreditNonQ']:
+            if risk_class == 'CreditQ':
+                same_is_rho = params.CreditQ_Rho_Agg_Same_IS
+                diff_is_rho = params.CreditQ_Rho_Agg_Diff_IS
+                if bucket == 'Residual':
+                    same_is_rho = params.CreditQ_Rho_Res_Same_IS
+                    diff_is_rho = params.CreditQ_Rho_Res_Diff_IS
+            else:
+                same_is_rho = params.CreditNonQ_Rho_Agg_Same_IS
+                diff_is_rho = params.CreditNonQ_Rho_Agg_Diff_IS
+                if bucket == 'Residual':
+                    same_is_rho = params.CreditNonQ_Rho_Res_Same_IS
+                    diff_is_rho = params.CreditNonQ_Rho_Res_Diff_IS
+
+            rho = np.ones((num_qualifiers, num_qualifiers)) * diff_is_rho
+            np.fill_diagonal(rho, same_is_rho)
+
+            one_mat = np.ones((len(params.CreditQ_Tenor), len(params.CreditQ_Tenor)))
+            rho = np.kron(rho, one_mat)
+
+        elif risk_class in ['Equity', 'Commodity']:
+            bucket_df = pd.DataFrame(pos_gp.Bucket.unique(), columns=['bucket'])
+
+            if risk_class == 'Equity':
+                bucket_params = params.Equity_Rho
+            elif risk_class == 'Commodity':
+                bucket_params = params.Commodity_Rho
+
+            rho = pd.merge(bucket_df, bucket_params, left_on=['bucket'], right_on=['bucket'], how='inner')
+            rho = rho['corr'][0]
+
+        elif risk_class == 'FX':
+            rho = params.FX_Rho
+
+        Corr = rho * F
+        np.fill_diagonal(Corr, 1)
+
+    return Corr
+
+def build_bucket_correlation(pos_delta, params):
+    risk_class = pos_delta.RiskClass.unique()[0]
+
+    g = 0
+
+    if risk_class == 'IR':
+        all_curr = pos_delta.Group.unique()
+        g = np.zeros((len(all_curr), len(all_curr)))
+        for i in range(len(all_curr)):
+            for j in range(len(all_curr)):
+                CRi = pos_delta[pos_delta.Group == all_curr[i]].CR[0]
+                CRj = pos_delta[pos_delta.Group == all_curr[j]].CR[0]
+
+                g[i][j] = min(CRi, CRj) / max(CRi, CRj)
+
+        g = g * params.IR_Gamma
+    elif risk_class == 'CreditQ':
+        g = params.CreditQ_Corr
+    elif risk_class == 'CreditNonQ':
+        g = params.CreditNonQ_Corr
+    elif risk_class == 'Equity':
+        g = params.Equity_Corr
+    elif risk_class == 'Commodity':
+        g = params.Commodity_Corr
+
+    g = np.mat(g)
+    np.fill_diagonal(g, 0)
+
+    return g
+
+def build_non_residual_S(pos_gp, params):
+    risk_class = pos_gp.RiskClass.unique()[0]
+
+    if risk_class == 'IR':
+        S = pos_gp.S
+    elif risk_class in ['CreditQ', 'CreditNonQ', 'Equity', 'Commodity']:
+        if risk_class == 'CreditQ':
+            S = np.zeros(len(params.CreditQ_Bucket) - 1)
+
+            for i in range(len(params.CreditQ_Bucket) - 1):
+                for j in range(len(pos_gp.Group)):
+                    if pos_gp.Group[j] == params.CreditQ_Bucket[i]:
+                        S[i] = pos_gp.S[j]
+                        break
+
+        elif risk_class == 'CreditNonQ':
+            S = np.zeros(len(params.CreditNonQ_Bucket) - 1)
+
+            for i in range(len(params.CreditNonQ_Bucket) - 1):
+                for j in range(len(pos_gp.Group)):
+                    if pos_gp.Group[j] == params.CreditNonQ_Bucket[i]:
+                        S[i] = pos_gp.S[j]
+                        break
+
+        elif risk_class == 'Equity':
+            S = np.zeros(len(params.Equity_Bucket) - 1)
+
+            for i in range(len(params.Equity_Bucket) - 1):
+                for j in range(len(pos_gp.Group)):
+                    if pos_gp.Group[j] == params.Equity_Bucket[i]:
+                        S[i] = pos_gp.S[j]
+                        break
+
+        elif risk_class == 'Commodity':
+            S = np.zeros(len(params.Commodity_Bucket))
+
+            for i in range(len(params.Commodity_Bucket)):
+                for j in range(len(pos_gp.Group)):
+                    if pos_gp.Group[j] == params.Commodity_Bucket[i]:
+                        S[i] = pos_gp.S[j]
+                        break
+
+    elif risk_class == 'FX':
+        S = 0
+
+    return S
+
+def delta_margin_group(gp, params):
+    logger.info('Calculate Delta Margin for {0}'.format(gp.Qualifier.unique()))
+
+    risk_class = gp.RiskClass.unique()[0]
+
+    s = build_risk_factors(gp, params)
+    RW = build_risk_weights(gp, params)
+    CR = build_concentration_risk(gp, params)
+
+    WS = RW * s * CR
+
+    Corr = build_in_bucket_correlation(gp, params)
+
+    K = np.mat(WS) * np.mat(Corr) * np.mat(np.reshape(WS, (len(WS), 1)))
+    K = math.sqrt(K.item(0))
+
+    ret = gp[['ProductClass', 'RiskType', 'RiskClass']].copy()
+    ret.drop_duplicates(inplace=True)
+    ret['S'] = max(min(WS.sum(), K), -K)
+
+    if risk_class == 'IR':
+        ret['CR'] = CR
+    else:
+        ret['CR'] = CR[0]
+
+    ret['WeightDelta'] = K
+
+    if risk_class == 'IR':
+        ret['Group'] = gp['Qualifier'].unique()[0]
+    elif risk_class == 'FX':
+        ret['Group'] = gp['RiskType'].unique()[0]
+    else:
+        ret['Group'] = gp['Bucket'].unique()[0]
+
+    return ret
+
+def delta_margin_risk_factor(pos, params):
     """Calculate Delta Margin for IR Class"""
 
     pos_delta = net_sensitivities(pos, params)
@@ -410,113 +599,43 @@ def delta_margin_IR_risk_factor(pos, params):
     risk_class = pos_delta.RiskClass.unique()[0]
     risk_type = pos_delta.RiskType.unique()[0]
 
-    def find_factor_idx(tenor_factor, curve_factor, tenors, curves, risk_class):
-        idx = 0
+    if risk_class == 'IR':
+        group = 'Qualifier'
+    elif risk_class == 'FX':
+        group = 'RiskType'
+    else:
+        group = 'Bucket'
 
-        for tenor in tenors:
-            for curve in curves:
-                if tenor_factor == tenor and curve_factor == curve:
-                    return idx
-                else:
-                    idx = idx + 1
-
-        return -1
-
-    def delta_margin_currency(gp):
-        logger.info('Calculate Delta Margin for {0}'.format(gp.Qualifier.unique()))
-
-        Tb = params.IR_G10_DKK_Threshold
-
-        gp_curr = gp.Qualifier.unique()[0]
-
-        if not gp_curr in params.G10_Curr:
-            Tb = params.IR_Other_Threshold
-
-        CR = max(1, math.sqrt(abs(gp.AmountUSD.sum() / Tb)))
-
-        curve = params.IR_Sub_Curve
-        if gp_curr == 'USD':
-            curve = params.IR_USD_Sub_Curve
-
-        s = np.zeros(len(params.IR_Tenor) * len(curve))
-        bucket = pd.DataFrame(gp.Bucket.unique(), columns=['curr_type'])
-        RW = pd.merge(bucket, params.IR_Weights, left_on=['curr_type'], right_on=['curr'], how='inner')
-        RW = RW.drop(['curr_type', 'curr'], axis=1)
-        RW = RW.as_matrix()
-        RW = np.repeat(RW, len(curve))
-
-        if gp.RiskType.unique()[0] == 'Risk_Inflation':
-            RW.fill(params.IR_Inflation_Weights)
-
-        for i, row in gp.iterrows():
-            idx = find_factor_idx(row['Label1'], row['Label2'], params.IR_Tenor, curve, risk_class)
-            if idx >= 0:
-                s[idx] = row['AmountUSD']
-
-        WS = RW * s * CR
-
-        fai = np.zeros((len(curve), len(curve)))
-        fai.fill(params.IR_Fai)
-        np.fill_diagonal(fai, 1)
-
-        rho = params.IR_Corr
-        if gp.RiskType.unique()[0] == 'Risk_Inflation':
-            rho = np.zeros(params.IR_Corr.shape)
-            rho.fill(params.IR_Inflation_Rho)
-            np.fill_diagonal(rho, 1)
-
-        Corr = np.kron(rho, fai)
-
-        K = np.mat(WS) * np.mat(Corr) * np.mat(np.reshape(WS, (len(WS), 1)))
-        K = math.sqrt(K.item(0))
-
-        ret = gp[['ProductClass', 'RiskType', 'Qualifier', 'RiskClass']].copy()
-        ret['S'] = max(min(WS.sum(), K), -K)
-        ret['CR'] = CR
-        ret['WeightDelta'] = K
-
-        return ret
-
-    pos_delta = pos_delta.groupby(['Qualifier']).apply(delta_margin_currency)
+    pos_delta = pos_delta.groupby([group]).apply(delta_margin_group, params)
     pos_delta.reset_index(inplace=True, drop=True)
 
     intermediate_path = '{0}\{1}\{2}'.format(os.getcwd(), product_class, risk_class)
-    pos_delta.to_csv('{0}\{1}_delta_margin_all_curs.csv'.format(intermediate_path, risk_type), index=False)
+    pos_delta.to_csv('{0}\{1}_delta_margin_group.csv'.format(intermediate_path, risk_type), index=False)
 
-    all_curr = pos_delta.Qualifier.unique()
-    g = np.zeros((len(all_curr), len(all_curr)))
-    for i in range(len(all_curr)):
-        for j in range(len(all_curr)):
-            CRi = pos_delta[pos_delta.Qualifier == all_curr[i]].CR[0]
-            CRj = pos_delta[pos_delta.Qualifier == all_curr[j]].CR[0]
+    g = build_bucket_correlation(pos_delta, params)
 
-            g[i][j] = min(CRi, CRj) / max(CRi, CRj)
+    pos_delta_non_residual = pos_delta[pos_delta.Group != 'Residual'].copy()
+    pos_delta_residual = pos_delta[pos_delta.Group == 'Residual'].copy()
 
-    np.fill_diagonal(g, 0)
-    S = pos_delta.S
-
-    SS = np.mat(S) * np.mat(g) * np.mat(np.reshape(S, (len(S), 1))) * params.IR_Gamma
+    S = build_non_residual_S(pos_delta_non_residual, params)
+    SS = np.mat(S) * np.mat(g) * np.mat(np.reshape(S, (len(S), 1)))
     SS = SS.item(0)
-    delta_margin = math.sqrt(np.dot(pos_delta.WeightDelta, pos_delta.WeightDelta) + SS)
+
+    delta_margin = math.sqrt(np.dot(pos_delta_non_residual.WeightDelta, pos_delta_non_residual.WeightDelta) + SS)
+
+    if len(pos_delta_residual) > 0:
+        delta_margin = delta_margin + pos_delta_residual.WeightDelta
 
     ret_mm = pos_delta[['ProductClass', 'RiskClass']].copy()
     ret_mm['DeltaMargin'] = delta_margin
 
     return ret_mm
 
-def delta_margin_IR(pos, params):
-    pos_curve = pos[pos.RiskType == 'Risk_IRCurve'].copy()
+def delta_margin(pos, params):
+    pos_delta = pos[pos.RiskType.isin(params.Delta_Factor)].copy()
 
-    pos_delta_margin = []
-
-    if len(pos_curve) > 0:
-        curve_delta_margin = delta_margin_IR_risk_factor(pos_curve, params)
-        pos_delta_margin = pd.concat([curve_delta_margin])
-
-    pos_inflation = pos[pos.RiskType == 'Risk_Inflation'].copy()
-    if len(pos_inflation) > 0:
-        inflation_delta_margin = delta_margin_IR_risk_factor(pos_inflation, params)
-        pos_delta_margin = pd.concat([pos_delta_margin, inflation_delta_margin])
+    if len(pos_delta) > 0:
+        pos_delta_margin = delta_margin_risk_factor(pos_delta, params)
 
     if len(pos_delta_margin):
         pos_delta_margin_gp = pos_delta_margin.groupby(['ProductClass', 'RiskClass'])
@@ -524,6 +643,12 @@ def delta_margin_IR(pos, params):
         pos_delta_margin_gp.reset_index(inplace=True)
 
     return pos_delta_margin_gp
+
+def calculate_simm(pos, params):
+    pos_gp_delta_margin = pos.groupby(['ProductClass']).apply(delta_margin, params)
+    pos_gp_delta_margin.reset_index(inplace=True, drop=True)
+
+    return pos_gp_delta_margin
 
 
 

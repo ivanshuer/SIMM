@@ -41,9 +41,8 @@ def main():
     trades_simm = trades_simm[['ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'Label2', 'AmountUSD', 'RiskClass']].copy()
     trades_simm.AmountUSD.fillna(0, inplace=True)
 
-    # pos = trades_simm[trades_simm.RiskClass == 'CreditQ'].copy()
-    pos = trades_simm[trades_simm.RiskType == 'Risk_IRCurve'].copy()
-    t1 = simm_lib.delta_margin_IR(pos, params)
+    #pos = trades_simm[trades_simm.RiskClass == 'CreditQ'].copy()
+    t1 = simm_lib.calculate_simm(trades_simm, params)
     t1.to_csv('1.csv', index=False)
 
     return
