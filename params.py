@@ -33,6 +33,7 @@ IR_Fai = 0.982
 IR_Gamma = 0.27
 IR_Inflation_Weights = 0.0032
 IR_Inflation_Rho = 0.33
+IR_VRW = 0.21
 
 CreditQ_Bucket = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'Residual']
 CreditQ_Tenor = ['1y', '2y', '3y', '5y', '10y']
@@ -43,6 +44,7 @@ CreditQ_Rho_Agg_Diff_IS = 0.55
 CreditQ_Rho_Res_Same_IS = 0.5
 CreditQ_Rho_Res_Diff_IS = 0.5
 CreditQ_Corr = pd.read_csv('{0}/creditq_correlation_params.csv'.format(config_folder))
+CreditQ_VRW = 0.35
 
 CreditNonQ_Bucket = ['1', '2', 'Residual']
 CreditNonQ_Tenor = ['1y', '2y', '3y', '5y', '10y']
@@ -53,7 +55,9 @@ CreditNonQ_Rho_Agg_Diff_IS = 0.21
 CreditNonQ_Rho_Res_Same_IS = 0.5
 CreditNonQ_Rho_Res_Diff_IS = 0.5
 CreditNonQ_Corr = pd.read_csv('{0}/creditnonq_correlation_params.csv'.format(config_folder))
+CreditNonQ_VRW = 0.35
 
+Equity_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']
 Equity_Bucket = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'Residual']
 Equity_EM = ['1', '2', '3', '4', '9']
 Equity_DEVELOPED = ['5', '6', '7', '8', '10']
@@ -64,7 +68,9 @@ Equity_INDEX_Threshold = 1.0
 Equity_Weights = pd.read_csv('{0}/equity_weights_params.csv'.format(config_folder))
 Equity_Rho = pd.read_csv('{0}/equity_in_bucket_correlation_params.csv'.format(config_folder))
 Equity_Corr = pd.read_csv('{0}/equity_correlation_params.csv'.format(config_folder))
+Equity_VRW = 0.21
 
+Commodity_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']
 Commodity_Bucket = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16']
 Commodity_FUEL = ['1', '2', '3', '4', '5', '6', '7']
 Commodity_POWER = ['8', '9', '10']
@@ -75,10 +81,13 @@ Commodity_OTHER_Threshold = 1.0
 Commodity_Weights = pd.read_csv('{0}/commodity_weights_params.csv'.format(config_folder), dtype={'bucket': str})
 Commodity_Rho = pd.read_csv('{0}/commodity_in_bucket_correlation_params.csv'.format(config_folder), dtype={'bucket': str})
 Commodity_Corr = pd.read_csv('{0}/commodity_correlation_params.csv'.format(config_folder))
+Commodity_VRW = 0.36
 
+FX_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']
 FX_Threshold = 1.0
 FX_Weights = 0.079
 FX_Rho = 0.5
+FX_VRW = 0.21
 
 
 

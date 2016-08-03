@@ -20,6 +20,9 @@ if not len(logger.handlers):
 
 class VegaMargin(Margin):
 
+    def __init__(self):
+        self.__margin = 'Vega'
+
     def net_sensitivities(self, pos, params):
         risk_class = pos.RiskClass.unique()[0]
 
@@ -97,10 +100,11 @@ class VegaMargin(Margin):
 
         return VRW
 
-    def delta_margin_group(self, gp, params):
-        logger.info('Calculate Delta Margin for {0}'.format(gp.Qualifier.unique()))
+    def margin_risk_group(self, gp, params):
 
         risk_class = gp.RiskClass.unique()[0]
+
+        logger.info('Calculate {0} Vega Margin for {1}'.format(risk_class, gp.Qualifier.unique()))
 
         s = self.build_risk_factors(gp, params)
         RW = self.build_risk_weights(gp, params)

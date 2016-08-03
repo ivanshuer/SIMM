@@ -5,7 +5,7 @@ import numpy as np
 import sys
 import params
 import simm_lib
-import ir_risk
+import argparse
 
 ##############################
 # Setup Logging Configuration
@@ -22,12 +22,14 @@ if not len(logger.handlers):
 
 
 def main():
-    logger.info('Main program')
+    parser = argparse.ArgumentParser(description='SIMM Calculation.')
+    parser.add_argument('-f', dest='input_file', type=str, required=True, help='simm input csv file')
+    args = parser.parse_args()
 
     simm_lib.prep_output_directory(params)
 
-    input_file = 'simm_input_1.csv'
-    trades_pos = pd.read_csv(input_file, dtype = {'Bucket': str, 'Label1': str, 'Label2': str, 'Amount': np.float64, 'AmountUSD': np.float64})
+    #input_file = 'simm_input_1.csv'
+    trades_pos = pd.read_csv(args.input_file, dtype = {'Bucket': str, 'Label1': str, 'Label2': str, 'Amount': np.float64, 'AmountUSD': np.float64})
 
     trades_pos = simm_lib.risk_classification(trades_pos, params)
     trades_pos_no_classification = trades_pos[trades_pos.reason != 'Good'].copy()
@@ -43,7 +45,7 @@ def main():
 
     #pos = trades_simm[trades_simm.RiskClass == 'CreditQ'].copy()
     t1 = simm_lib.calculate_simm(trades_simm, params)
-    t1.to_csv('1.csv', index=False)
+    t1.to_csv('simm_output.csv', index=False)
 
     return
 

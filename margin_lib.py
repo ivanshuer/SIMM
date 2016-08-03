@@ -227,7 +227,7 @@ class Margin(object):
 
         return S
 
-    def delta_margin_risk_factor(self, pos, params):
+    def margin_risk_factor(self, pos, params):
         """Calculate Delta Margin for IR Class"""
 
         pos_delta = self.net_sensitivities(pos, params)
@@ -243,7 +243,17 @@ class Margin(object):
         else:
             group = 'Bucket'
 
-        pos_delta = pos_delta.groupby([group]).apply(self.delta_margin_group, params)
+        #pos_delta_gp_all = []
+        #for gp in pos_delta[group].unique():
+        #    pos_delta_gp = pos_delta[pos_delta[group] == gp].copy()
+        #    pos_delta_gp = self.margin_risk_group(pos_delta_gp, params)
+        #    pos_delta_gp_all.append(pos_delta_gp)
+
+        #pos_delta_gp_all = pd.concat(pos_delta_gp_all)
+
+        #pos_delta = pos_delta_gp_all.copy()
+
+        pos_delta = pos_delta.groupby([group]).apply(self.margin_risk_group, params)
         pos_delta.reset_index(inplace=True, drop=True)
 
         intermediate_path = '{0}\{1}\{2}'.format(os.getcwd(), product_class, risk_class)
