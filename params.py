@@ -8,7 +8,7 @@ G10_Curr = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'NZD', 'CHF', 'DKK', 'NOK'
 Reg_Vol_Curr = ['USD', 'EUR', 'GBP', 'CHF', 'AUD', 'NZD', 'CAD', 'SEK', 'NOK', 'DKK', 'HKD', 'KRW', 'SGD', 'TWD']
 Low_Vol_Curr = ['JPY']
 
-RiskType = ['IR', 'CreditQ', 'CreditNonQ', 'Equity', 'FX', 'Commodity']
+RiskType = ['IR', 'CreditQ', 'CreditNonQ', 'Equity', 'Commodity', 'FX']
 
 IR = ['Risk_IRCurve', 'Risk_IRVol', 'Risk_Inflation']
 CreditQ = ['Risk_CreditQ', 'Risk_CreditVol']
@@ -19,6 +19,8 @@ Commodity = ['Risk_Commodity', 'Risk_CommodityVol']
 
 Delta_Factor = ['Risk_IRCurve', 'Risk_Inflation', 'Risk_CreditQ', 'Risk_CreditNonQ', 'Risk_Equity', 'Risk_FX', 'Risk_Commodity']
 Vega_Factor = ['Risk_IRVol', 'Risk_CreditVol', 'Risk_EquityVol', 'Risk_FXVol', 'Risk_CommodityVol']
+
+Risk_Class_Corr = pd.read_csv('{0}/risk_class_correlation_params.csv'.format(config_folder))
 
 IR_Bucket = ['1', '2', '3']
 IR_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']

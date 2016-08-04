@@ -44,8 +44,9 @@ def main():
     trades_simm.AmountUSD.fillna(0, inplace=True)
 
     #pos = trades_simm[trades_simm.RiskClass == 'CreditQ'].copy()
-    t1 = simm_lib.calculate_simm(trades_simm, params)
-    t1.to_csv('simm_output.csv', index=False)
+    simm = simm_lib.calculate_simm(trades_simm, params)
+    simm = pd.DataFrame([simm], columns=['SIMM'])
+    simm.to_csv('simm_output.csv', index=False)
 
     return
 

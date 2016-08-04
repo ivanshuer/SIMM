@@ -267,6 +267,38 @@ def calc_vega_margin(pos, params):
 
     return pos_vega_margin_gp
 
+def calculate_in_product_margin(pos_gp, params):
+
+    risk_class_corr = params.Risk_Class_Corr
+
+    pos_product_margin = []
+    for product in pos_gp.ProductClass.unique():
+        logger.info('Calculate In-Product margin for {0}'.format(product))
+
+        pos_product = pos_gp[pos_gp.ProductClass == product].copy()
+
+        risk_margin = np.zeros(len(params.RiskType))
+
+        for i in range(len(params.RiskType)):
+            for j in range(len(pos_product.RiskClass)):
+                if pos_product.RiskClass.values[j] == params.RiskType[i]:
+                    risk_margin[i] = pos_product.Margin.values[j]
+                    break
+
+        product_margin = np.mat(risk_margin) * np.mat(risk_class_corr) * np.mat(np.reshape(risk_margin, (len(risk_margin), 1)))
+        product_margin = math.sqrt(product_margin.item(0))
+
+        pos_product = pos_product[['ProductClass']].copy()
+        pos_product['Margin'] = product_margin
+
+        pos_product_margin.append(pos_product)
+
+    if len(pos_product_margin) > 0:
+        pos_product_margin = pd.concat(pos_product_margin)
+
+    return pos_product_margin
+
+
 def calculate_simm(pos, params):
 
     product_margin = []
@@ -286,8 +318,17 @@ def calculate_simm(pos, params):
 
     product_margin = pd.concat(product_margin)
 
+    product_margin.to_csv('simm_all_margin.csv', index=False)
 
-    return product_margin
+    product_margin_gp = product_margin.groupby(['ProductClass', 'RiskClass'])
+    product_margin_gp = product_margin_gp.agg({'Margin': np.sum})
+    product_margin_gp.reset_index(inplace=True)
+
+    product_margin_all = calculate_in_product_margin(product_margin_gp, params)
+
+    simm = product_margin_all.Margin.sum()
+
+    return simm
 
 
 
