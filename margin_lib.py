@@ -111,6 +111,16 @@ class Margin(object):
             rho = params.IR_Corr
 
             Corr = np.kron(rho, fai)
+
+            pos_inflation = pos_gp[pos_gp.RiskType == 'Risk_Inflation'].copy()
+            if len(pos_inflation) > 0:
+                inflation_rho = np.ones(len(curve)*len(params.IR_Tenor)) * params.IR_Inflation_Rho
+                inflation_rho_column = np.reshape(inflation_rho, (len(inflation_rho), 1))
+                Corr = np.append(Corr, inflation_rho_column, axis=1)
+
+                inflation_rho = np.append(inflation_rho, 1)
+                inflation_rho = np.reshape(inflation_rho, (1, len(inflation_rho)))
+                Corr = np.append(Corr, inflation_rho, axis=0)
         else:
             num_qualifiers = pos_gp.Qualifier.nunique()
 

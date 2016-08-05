@@ -39,6 +39,15 @@ class DeltaMargin(Margin):
         pos_delta = pos_gp.agg({'AmountUSD': np.sum})
         pos_delta.reset_index(inplace=True)
 
+        pos_inflation = pos[pos.RiskType == 'Risk_Inflation'].copy()
+        if len(pos_inflation) > 0:
+            agg_amount = pos_inflation.AmountUSD.sum()
+            pos_inflation = pos_inflation[factor_group].copy()
+            pos_inflation.drop_duplicates(inplace=True)
+            pos_inflation['AmountUSD'] = agg_amount
+
+            pos_delta = pd.concat([pos_delta, pos_inflation])
+
         return pos_delta
 
     def find_factor_idx(self, tenor_factor, curve_factor, tenors, curves, risk_class):
@@ -66,6 +75,8 @@ class DeltaMargin(Margin):
         risk_class = pos_gp.RiskClass.unique()[0]
 
         if risk_class == 'IR':
+            pos_inflation = pos_gp[pos_gp.RiskType == 'Risk_Inflation'].copy()
+
             gp_curr = pos_gp.Qualifier.unique()[0]
 
             curve = params.IR_Sub_Curve
@@ -73,11 +84,16 @@ class DeltaMargin(Margin):
                 curve = params.IR_USD_Sub_Curve
 
             s = np.zeros(len(params.IR_Tenor) * len(curve))
+            if len(pos_inflation) > 0:
+                s = np.zeros(len(params.IR_Tenor) * len(curve) + 1)
 
             for i, row in pos_gp.iterrows():
                 idx = self.find_factor_idx(row['Label1'], row['Label2'], params.IR_Tenor, curve, risk_class)
                 if idx >= 0:
                     s[idx] = row['AmountUSD']
+
+            if len(pos_inflation) > 0:
+                s[len(s) - 1] = pos_inflation.AmountUSD
 
         elif risk_class in ['CreditQ', 'CreditNonQ']:
 
@@ -121,6 +137,10 @@ class DeltaMargin(Margin):
                 curve = params.IR_USD_Sub_Curve
 
             RW = np.repeat(RW, len(curve))
+
+            pos_inflation = pos_gp[pos_gp.RiskType == 'Risk_Inflation'].copy()
+            if len(pos_inflation) > 0:
+                RW = np.append(RW, params.IR_Inflation_Weights)
         else:
             if risk_class == 'CreditQ':
                 weights = params.CreditQ_Weights
@@ -169,8 +189,14 @@ class DeltaMargin(Margin):
         K = np.mat(WS) * np.mat(Corr) * np.mat(np.reshape(WS, (len(WS), 1)))
         K = math.sqrt(K.item(0))
 
-        ret = gp[['ProductClass', 'RiskType', 'RiskClass']].copy()
+        if gp.RiskType.nunique() > 1:
+            risk_type = '_'.join(gp.RiskType.unique())
+        else:
+            risk_type = gp.RiskType.unique()[0]
+
+        ret = gp[['ProductClass', 'RiskClass']].copy()
         ret.drop_duplicates(inplace=True)
+        ret['RiskType'] = risk_type
         ret['K'] = K
         ret['S'] = max(min(WS.sum(), K), -K)
 
