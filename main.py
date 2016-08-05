@@ -2,7 +2,6 @@ import pandas as pd
 import logging
 import os
 import numpy as np
-import sys
 import params
 import simm_lib
 import argparse
@@ -29,7 +28,8 @@ def main():
     simm_lib.prep_output_directory(params)
 
     #input_file = 'simm_input_1.csv'
-    trades_pos = pd.read_csv(args.input_file, dtype = {'Bucket': str, 'Label1': str, 'Label2': str, 'Amount': np.float64, 'AmountUSD': np.float64})
+    input_file = args.input_file
+    trades_pos = pd.read_csv(input_file, dtype = {'Bucket': str, 'Label1': str, 'Label2': str, 'Amount': np.float64, 'AmountUSD': np.float64})
 
     trades_pos = simm_lib.risk_classification(trades_pos, params)
     trades_pos_no_classification = trades_pos[trades_pos.reason != 'Good'].copy()

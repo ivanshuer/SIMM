@@ -21,7 +21,10 @@ class Margin(object):
 
     def build_concentration_risk(self, pos_gp, params):
         risk_class = pos_gp.RiskClass.unique()[0]
-        bucket = pos_gp.Bucket.unique()[0]
+        if risk_class not in ['IR', 'FX']:
+            bucket = pos_gp.Bucket.unique()[0]
+
+        is_vega_factor = pos_gp.RiskType.unique()[0] in params.Vega_Factor
 
         f = lambda x: max(1, math.sqrt(abs(x) / Tb))
 
@@ -58,6 +61,9 @@ class Margin(object):
                     Tb = params.Equity_DEVELOPED_Threshold
                 elif bucket in params.Equity_INDEX:
                     Tb = params.Equity_INDEX_Threshold
+
+                if is_vega_factor:
+                    tenors = params.Equity_Tenor
             elif risk_class == 'Commodity':
                 if bucket in params.Commodity_FUEL:
                     Tb = params.Commodity_FUEL_Threshold
@@ -65,17 +71,27 @@ class Margin(object):
                     Tb = params.Commodity_POWER_Threshold
                 elif bucket in params.Commodity_OTHER:
                     Tb = params.Commodity_OTHER_Threshold
+
+                if is_vega_factor:
+                    tenors = params.Commodity_Tenor
             elif risk_class == 'FX':
                 Tb = params.FX_Threshold
 
+                if is_vega_factor:
+                    tenors = params.FX_Tenor
+
             CR = pos_gp.AmountUSD.apply(f)
             CR = CR.values
+
+            if is_vega_factor:
+                CR = np.repeat(CR, len(tenors))
 
         return CR
 
     def build_in_bucket_correlation(self, pos_gp, params):
         risk_class = pos_gp.RiskClass.unique()[0]
-        bucket = pos_gp.Bucket.unique()[0]
+        if risk_class not in ['IR', 'FX']:
+            bucket = pos_gp.Bucket.unique()[0]
 
         is_vega_factor = pos_gp.RiskType.unique()[0] in params.Vega_Factor
 
@@ -257,7 +273,7 @@ class Margin(object):
         pos_delta.reset_index(inplace=True, drop=True)
 
         intermediate_path = '{0}\{1}\{2}'.format(os.getcwd(), product_class, risk_class)
-        pos_delta.to_csv('{0}\{1}_delta_margin_group.csv'.format(intermediate_path, risk_type), index=False)
+        pos_delta.to_csv('{0}\{1}_margin_group.csv'.format(intermediate_path, risk_type), index=False)
 
         g = self.build_bucket_correlation(pos_delta, params)
 
@@ -265,13 +281,17 @@ class Margin(object):
         pos_delta_residual = pos_delta[pos_delta.Group == 'Residual'].copy()
 
         S = self.build_non_residual_S(pos_delta_non_residual, params)
-        SS = np.mat(S) * np.mat(g) * np.mat(np.reshape(S, (len(S), 1)))
-        SS = SS.item(0)
 
-        delta_margin = math.sqrt(np.dot(pos_delta_non_residual.WeightDelta, pos_delta_non_residual.WeightDelta) + SS)
+        if risk_class != 'FX':
+            SS = np.mat(S) * np.mat(g) * np.mat(np.reshape(S, (len(S), 1)))
+            SS = SS.item(0)
+        else:
+            SS = 0
+
+        delta_margin = math.sqrt(np.dot(pos_delta_non_residual.K, pos_delta_non_residual.K) + SS)
 
         if len(pos_delta_residual) > 0:
-            delta_margin = delta_margin + pos_delta_residual.WeightDelta
+            delta_margin = delta_margin + pos_delta_residual.K
 
         ret_mm = pos_delta[['ProductClass', 'RiskClass']].copy()
         ret_mm['Margin'] = delta_margin

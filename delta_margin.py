@@ -153,7 +153,7 @@ class DeltaMargin(Margin):
 
         risk_class = gp.RiskClass.unique()[0]
 
-        if risk_class == 'IR':
+        if risk_class in ['IR', 'FX']:
             logger.info('Calculate {0} Delta Margin for {1}'.format(risk_class, gp.Qualifier.unique()))
         else:
             logger.info('Calculate {0} Delta Margin for {1}'.format(risk_class, gp.Bucket.unique()))
@@ -171,14 +171,13 @@ class DeltaMargin(Margin):
 
         ret = gp[['ProductClass', 'RiskType', 'RiskClass']].copy()
         ret.drop_duplicates(inplace=True)
+        ret['K'] = K
         ret['S'] = max(min(WS.sum(), K), -K)
 
         if risk_class == 'IR':
             ret['CR'] = CR
         else:
             ret['CR'] = CR[0]
-
-        ret['WeightDelta'] = K
 
         if risk_class == 'IR':
             ret['Group'] = gp['Qualifier'].unique()[0]

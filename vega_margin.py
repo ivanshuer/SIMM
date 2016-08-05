@@ -26,7 +26,7 @@ class VegaMargin(Margin):
     def net_sensitivities(self, pos, params):
         risk_class = pos.RiskClass.unique()[0]
 
-        if risk_class == ['IR', 'FX']:
+        if risk_class in ['IR', 'FX']:
             factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Label1', 'RiskClass']
         elif risk_class in ['CreditQ', 'CreditNonQ', 'Equity', 'Commodity']:
             factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'RiskClass']
@@ -104,7 +104,10 @@ class VegaMargin(Margin):
 
         risk_class = gp.RiskClass.unique()[0]
 
-        logger.info('Calculate {0} Vega Margin for {1}'.format(risk_class, gp.Qualifier.unique()))
+        if risk_class in ['IR', 'FX']:
+            logger.info('Calculate {0} Vega Margin for {1}'.format(risk_class, gp.Qualifier.unique()))
+        else:
+            logger.info('Calculate {0} Vega Margin for {1}'.format(risk_class, gp.Bucket.unique()))
 
         s = self.build_risk_factors(gp, params)
         RW = self.build_risk_weights(gp, params)
@@ -119,14 +122,13 @@ class VegaMargin(Margin):
 
         ret = gp[['ProductClass', 'RiskType', 'RiskClass']].copy()
         ret.drop_duplicates(inplace=True)
+        ret['K'] = K
         ret['S'] = max(min(WS.sum(), K), -K)
 
         if risk_class == 'IR':
             ret['CR'] = CR
         else:
             ret['CR'] = CR[0]
-
-        ret['WeightDelta'] = K
 
         if risk_class == 'IR':
             ret['Group'] = gp['Qualifier'].unique()[0]
