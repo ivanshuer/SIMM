@@ -10,15 +10,16 @@ Low_Vol_Curr = ['JPY']
 
 RiskType = ['IR', 'CreditQ', 'CreditNonQ', 'Equity', 'Commodity', 'FX']
 
-IR = ['Risk_IRCurve', 'Risk_IRVol', 'Risk_Inflation']
-CreditQ = ['Risk_CreditQ', 'Risk_CreditVol']
-CreditNonQ = ['Risk_CreditNonQ', 'Risk_CreditVolNonQ']
-Equity = ['Risk_Equity', 'Risk_EquityVol']
-FX = ['Risk_FX', 'Risk_FXVol']
-Commodity = ['Risk_Commodity', 'Risk_CommodityVol']
+IR = ['Risk_IRCurve', 'Risk_IRVol', 'Risk_Inflation', 'Risk_IRCV']
+CreditQ = ['Risk_CreditQ', 'Risk_CreditVol', 'Risk_CreditCV']
+CreditNonQ = ['Risk_CreditNonQ', 'Risk_CreditNonQVol', 'Risk_CreditNonQCV']
+Equity = ['Risk_Equity', 'Risk_EquityVol', 'Risk_EquityCV']
+FX = ['Risk_FX', 'Risk_FXVol', 'Risk_FXCV']
+Commodity = ['Risk_Commodity', 'Risk_CommodityVol', 'Risk_CommodityCV']
 
 Delta_Factor = ['Risk_IRCurve', 'Risk_Inflation', 'Risk_CreditQ', 'Risk_CreditNonQ', 'Risk_Equity', 'Risk_FX', 'Risk_Commodity']
 Vega_Factor = ['Risk_IRVol', 'Risk_CreditVol', 'Risk_EquityVol', 'Risk_FXVol', 'Risk_CommodityVol']
+Curvature_Factor = ['Risk_IRCV', 'Risk_CreditCV', 'Risk_EquityCV', 'Risk_FXCV', 'Risk_CommodityCV']
 
 Risk_Class_Corr = pd.read_csv('{0}/risk_class_correlation_params.csv'.format(config_folder))
 
@@ -36,6 +37,7 @@ IR_Gamma = 0.27
 IR_Inflation_Weights = 0.0032
 IR_Inflation_Rho = 0.33
 IR_VRW = 0.21
+IR_Curvature_Margin_Scale = 2.3
 
 CreditQ_Bucket = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', 'Residual']
 CreditQ_Tenor = ['1y', '2y', '3y', '5y', '10y']

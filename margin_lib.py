@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import logging
 import math
+from scipy.stats import norm
 
 ##############################
 # Setup Logging Configuration
@@ -25,6 +26,7 @@ class Margin(object):
             bucket = pos_gp.Bucket.unique()[0]
 
         is_vega_factor = pos_gp.RiskType.unique()[0] in params.Vega_Factor
+        is_curvature_factor = pos_gp.RiskType.unique()[0] in params.Curvature_Factor
 
         f = lambda x: max(1, math.sqrt(abs(x) / Tb))
 
@@ -62,7 +64,7 @@ class Margin(object):
                 elif bucket in params.Equity_INDEX:
                     Tb = params.Equity_INDEX_Threshold
 
-                if is_vega_factor:
+                if is_vega_factor or is_curvature_factor:
                     tenors = params.Equity_Tenor
             elif risk_class == 'Commodity':
                 if bucket in params.Commodity_FUEL:
@@ -72,18 +74,18 @@ class Margin(object):
                 elif bucket in params.Commodity_OTHER:
                     Tb = params.Commodity_OTHER_Threshold
 
-                if is_vega_factor:
+                if is_vega_factor or is_curvature_factor:
                     tenors = params.Commodity_Tenor
             elif risk_class == 'FX':
                 Tb = params.FX_Threshold
 
-                if is_vega_factor:
+                if is_vega_factor or is_curvature_factor:
                     tenors = params.FX_Tenor
 
             CR = pos_gp.AmountUSD.apply(f)
             CR = CR.values
 
-            if is_vega_factor:
+            if is_vega_factor or is_curvature_factor:
                 CR = np.repeat(CR, len(tenors))
 
         return CR
@@ -94,6 +96,7 @@ class Margin(object):
             bucket = pos_gp.Bucket.unique()[0]
 
         is_vega_factor = pos_gp.RiskType.unique()[0] in params.Vega_Factor
+        is_curvature_factor = pos_gp.RiskType.unique()[0] in params.Curvature_Factor
 
         if risk_class == 'IR':
             gp_curr = pos_gp.Qualifier.unique()[0]
@@ -105,10 +108,12 @@ class Margin(object):
             fai.fill(params.IR_Fai)
             np.fill_diagonal(fai, 1)
 
-            if is_vega_factor:
+            if is_vega_factor or is_curvature_factor:
                 fai = 1
 
             rho = params.IR_Corr
+            if is_curvature_factor:
+                rho = rho * rho
 
             Corr = np.kron(rho, fai)
 
@@ -171,6 +176,10 @@ class Margin(object):
             elif risk_class == 'FX':
                 rho = params.FX_Rho
 
+            if is_curvature_factor:
+                rho = rho * rho
+                F.fill(1)
+
             Corr = rho * F
             np.fill_diagonal(Corr, 1)
 
@@ -179,17 +188,21 @@ class Margin(object):
     def build_bucket_correlation(self, pos_delta, params):
         risk_class = pos_delta.RiskClass.unique()[0]
 
+        is_curvature_factor = pos_delta.RiskType.unique()[0] in params.Curvature_Factor
+
         g = 0
 
         if risk_class == 'IR':
             all_curr = pos_delta.Group.unique()
-            g = np.zeros((len(all_curr), len(all_curr)))
-            for i in range(len(all_curr)):
-                for j in range(len(all_curr)):
-                    CRi = pos_delta.iloc[[i]].CR.values[0]
-                    CRj = pos_delta.iloc[[j]].CR.values[0]
+            g = np.ones((len(all_curr), len(all_curr)))
 
-                    g[i][j] = min(CRi, CRj) / max(CRi, CRj)
+            if not is_curvature_factor:
+                for i in range(len(all_curr)):
+                    for j in range(len(all_curr)):
+                        CRi = pos_delta.iloc[[i]].CR.values[0]
+                        CRj = pos_delta.iloc[[j]].CR.values[0]
+
+                        g[i][j] = min(CRi, CRj) / max(CRi, CRj)
 
             g = g * params.IR_Gamma
         elif risk_class == 'CreditQ':
@@ -200,6 +213,9 @@ class Margin(object):
             g = params.Equity_Corr
         elif risk_class == 'Commodity':
             g = params.Commodity_Corr
+
+        if is_curvature_factor:
+            g = pow(g, 2)
 
         g = np.mat(g)
         np.fill_diagonal(g, 0)
@@ -262,6 +278,8 @@ class Margin(object):
         risk_class = pos_delta.RiskClass.unique()[0]
         risk_type = pos_delta.RiskType.unique()[0]
 
+        is_curvature_factor = risk_type in params.Curvature_Factor
+
         if risk_class == 'IR':
             group = 'Qualifier'
         elif risk_class == 'FX':
@@ -300,8 +318,23 @@ class Margin(object):
 
         delta_margin = math.sqrt(np.dot(pos_delta_non_residual.K, pos_delta_non_residual.K) + SS)
 
+        if is_curvature_factor:
+            theta = min(pos_delta_non_residual.CVR_sum.sum() / pos_delta_non_residual.CVR_abs_sum.sum(), 0)
+            lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
+
+            delta_margin = max(lambda_const * delta_margin + pos_delta_non_residual.CVR_sum.sum(), 0)
+
         if len(pos_delta_residual) > 0:
-            delta_margin = delta_margin + pos_delta_residual.K
+            if is_curvature_factor:
+                theta = min(pos_delta_residual.CVR_sum / pos_delta_residual.CVR_abs_sum, 0)
+                lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
+
+                delta_margin = delta_margin + max(pos_delta_residual.CVR_sum + lambda_const * pos_delta_residual.K, 0)
+
+                if risk_class == 'IR':
+                    delta_margin = delta_margin * params.IR_Curvature_Margin_Scale
+            else:
+                delta_margin = delta_margin + pos_delta_residual.K
 
         ret_mm = pos_delta[['ProductClass', 'RiskClass']].copy()
         ret_mm['Margin'] = delta_margin

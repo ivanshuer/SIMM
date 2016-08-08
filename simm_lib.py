@@ -6,6 +6,7 @@ import math
 import shutil
 import delta_margin
 import vega_margin
+import curvature_margin
 
 ##############################
 # Setup Logging Configuration
@@ -124,7 +125,7 @@ def prep_data_IR(pos, params):
     pos_IRCurve = pos[pos.RiskType == 'Risk_IRCurve'].copy()
     pos_IRCurve = prep_data_IRCurve(pos_IRCurve, params)
 
-    pos_IRVol = pos[pos.RiskType == 'Risk_IRVol'].copy()
+    pos_IRVol = pos[pos.RiskType.isin(['Risk_IRVol', 'Risk_IRCV'])].copy()
     pos_IRVol = prep_data_IRVol(pos_IRVol, params)
 
     pos_Inflation = pos[pos.RiskType == 'Risk_Inflation'].copy()
@@ -267,6 +268,24 @@ def calc_vega_margin(pos, params):
 
     return pos_vega_margin_gp
 
+def calc_curvature_margin(pos, params):
+    pos_curvature = pos[pos.RiskType.isin(params.Curvature_Factor)].copy()
+
+    pos_curvature_margin_gp = []
+    pos_curvature_margin = []
+
+    if len(pos_curvature) > 0:
+        curvature_margin_loader = curvature_margin.CurvatureMargin()
+        pos_curvature_margin = curvature_margin_loader.margin_risk_factor(pos_curvature, params)
+
+    if len(pos_curvature_margin) > 0:
+        pos_curvature_margin_gp = pos_curvature_margin.groupby(['ProductClass', 'RiskClass'])
+        pos_curvature_margin_gp = pos_curvature_margin_gp.agg({'Margin': np.sum})
+        pos_curvature_margin_gp.reset_index(inplace=True)
+        pos_curvature_margin_gp['MarginType'] = 'Curvature'
+
+    return pos_curvature_margin_gp
+
 def calculate_in_product_margin(pos_gp, params):
 
     risk_class_corr = params.Risk_Class_Corr
@@ -315,6 +334,10 @@ def calculate_simm(pos, params):
             pos_gp_vega_margin = calc_vega_margin(pos_product, params)
             if len(pos_gp_vega_margin) > 0:
                 product_margin.append(pos_gp_vega_margin)
+
+            pos_gp_curvature_margin = calc_curvature_margin(pos_product, params)
+            if len(pos_gp_curvature_margin) > 0:
+                product_margin.append(pos_gp_curvature_margin)
 
     product_margin = pd.concat(product_margin)
 
