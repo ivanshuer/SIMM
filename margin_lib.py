@@ -287,18 +287,18 @@ class Margin(object):
         else:
             group = 'Bucket'
 
-        #pos_delta_gp_all = []
-        #for gp in pos_delta[group].unique():
-        #    pos_delta_gp = pos_delta[pos_delta[group] == gp].copy()
-        #    pos_delta_gp = self.margin_risk_group(pos_delta_gp, params)
-        #    pos_delta_gp_all.append(pos_delta_gp)
+        pos_delta_gp_all = []
+        for gp in pos_delta[group].sort_values().unique():
+            pos_delta_gp = pos_delta[pos_delta[group] == gp].copy()
+            pos_delta_gp = self.margin_risk_group(pos_delta_gp, params)
+            pos_delta_gp_all.append(pos_delta_gp)
 
-        #pos_delta_gp_all = pd.concat(pos_delta_gp_all)
+        pos_delta_gp_all = pd.concat(pos_delta_gp_all)
 
-        #pos_delta = pos_delta_gp_all.copy()
+        pos_delta = pos_delta_gp_all.copy()
 
-        pos_delta = pos_delta.groupby([group]).apply(self.margin_risk_group, params)
-        pos_delta.reset_index(inplace=True, drop=True)
+        #pos_delta = pos_delta.groupby([group]).apply(self.margin_risk_group, params)
+        #pos_delta.reset_index(inplace=True, drop=True)
 
         intermediate_path = '{0}\{1}\{2}'.format(os.getcwd(), product_class, risk_class)
         pos_delta.to_csv('{0}\{1}_margin_group.csv'.format(intermediate_path, risk_type), index=False)

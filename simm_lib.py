@@ -22,6 +22,8 @@ if not len(logger.handlers):
 ###############################
 
 def prep_output_directory(params):
+    """Setup output directory by product and risk class"""
+
     for prod in params.Product:
         output_path = '{0}\{1}'.format(os.getcwd(), prod)
         if os.path.exists(output_path):
@@ -36,8 +38,9 @@ def prep_output_directory(params):
                 os.mkdir(output_path)
 
 def risk_classification(trades_pos, params):
-    """ Risk class classification in terms of RiskType
-    """
+    """Risk class classification in terms of RiskType"""
+
+    # Check product type
     trades_pos_no_product = trades_pos[~trades_pos.ProductClass.isin(params.Product)].copy()
     if len(trades_pos_no_product) > 0:
         logger.info('{0} trades missed Product Class'.format(len(trades_pos_no_product)))
@@ -45,6 +48,7 @@ def risk_classification(trades_pos, params):
 
     trades_pos = trades_pos[trades_pos.ProductClass.isin(params.Product)].copy()
 
+    # Determine risk class
     trades_pos['RiskClass'] = np.NaN
     trades_pos.ix[trades_pos.RiskType.isin(params.IR), 'RiskClass'] = 'IR'
     trades_pos.ix[trades_pos.RiskType.isin(params.CreditQ), 'RiskClass'] = 'CreditQ'
@@ -60,6 +64,7 @@ def risk_classification(trades_pos, params):
 
     trades_pos = trades_pos[trades_pos.RiskClass.isin(params.RiskType)].copy()
 
+    # Check qualifier
     trades_pos_no_qualifier = trades_pos[trades_pos.Qualifier.isnull()].copy()
     if len(trades_pos_no_qualifier) > 0:
         logger.info('{0} trades missed Qualifiers'.format(len(trades_pos_no_qualifier)))
@@ -122,12 +127,17 @@ def prep_data_IRVol(pos, params):
     return pos
 
 def prep_data_IR(pos, params):
+    """Check data quality for IR factor"""
+
+    # Check IR curve
     pos_IRCurve = pos[pos.RiskType == 'Risk_IRCurve'].copy()
     pos_IRCurve = prep_data_IRCurve(pos_IRCurve, params)
 
+    # Check IR vol and curvature
     pos_IRVol = pos[pos.RiskType.isin(['Risk_IRVol', 'Risk_IRCV'])].copy()
     pos_IRVol = prep_data_IRVol(pos_IRVol, params)
 
+    # Check IR inflation
     pos_Inflation = pos[pos.RiskType == 'Risk_Inflation'].copy()
 
     pos = pd.concat([pos_IRCurve, pos_IRVol, pos_Inflation])
