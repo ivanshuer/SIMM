@@ -19,6 +19,11 @@ if not len(logger.handlers):
     formatter = logging.Formatter('%(asctime)s|%(name)s === %(message)s ===', datefmt='%Y-%m-%d %I:%M:%S')
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+
+    file_handler = logging.FileHandler('log.txt')
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(logging.DEBUG)
+    logger.addHandler(file_handler)
 ###############################
 
 def prep_output_directory(params):
