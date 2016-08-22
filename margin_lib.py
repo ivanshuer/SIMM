@@ -33,7 +33,8 @@ class Margin(object):
         is_vega_factor = pos_gp.RiskType.unique()[0] in params.Vega_Factor
         is_curvature_factor = pos_gp.RiskType.unique()[0] in params.Curvature_Factor
 
-        f = lambda x: max(1, math.sqrt(abs(x) / Tb))
+        #f = lambda x: max(1, math.sqrt(abs(x) / Tb))
+        f = lambda x: 100
 
         if risk_class == 'IR':
             Tb = params.IR_G10_DKK_Threshold
@@ -43,7 +44,8 @@ class Margin(object):
             if not gp_curr in params.G10_Curr:
                 Tb = params.IR_Other_Threshold
 
-            CR = max(1, math.sqrt(abs(pos_gp.AmountUSD.sum() / Tb)))
+            #CR = max(1, math.sqrt(abs(pos_gp.AmountUSD.sum() / Tb)))
+            CR = 100
 
         elif risk_class in ['CreditQ', 'CreditNonQ']:
             if risk_class == 'CreditQ':
