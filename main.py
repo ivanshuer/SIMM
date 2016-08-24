@@ -56,9 +56,14 @@ def main():
 
     # Calculate SIMM and dump output
     #pos = trades_simm[trades_simm.RiskClass == 'CreditQ'].copy()
-    simm = simm_lib.calculate_simm(trades_simm, params)
-    simm = pd.DataFrame([simm], columns=['SIMM'])
-    simm.to_csv('simm_output.csv', index=False)
+    if len(trades_simm) > 0:
+        simm = simm_lib.calculate_simm(trades_simm, params)
+        simm = pd.DataFrame([simm], columns=['SIMM'])
+        simm.to_csv('simm_output.csv', index=False)
+
+        logger.info('Total SIMM is {0}'.format(simm.SIMM.values[0]))
+    else:
+        logger.info('No trade has SIMM')
 
     return
 

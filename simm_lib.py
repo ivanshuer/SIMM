@@ -7,6 +7,7 @@ import shutil
 import delta_margin
 import vega_margin
 import curvature_margin
+import pdb
 
 ##############################
 # Setup Logging Configuration
@@ -364,6 +365,7 @@ def calculate_simm(pos, params):
 
     product_margin_all = calculate_in_product_margin(product_margin_gp, params)
 
+    pdb.set_trace()
     simm = product_margin_all.Margin.sum()
 
     return simm

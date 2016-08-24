@@ -4,6 +4,7 @@ import os
 import logging
 import math
 from scipy.stats import norm
+import pdb
 
 ##############################
 # Setup Logging Configuration
@@ -35,6 +36,8 @@ class Margin(object):
 
         #f = lambda x: max(1, math.sqrt(abs(x) / Tb))
         f = lambda x: 100
+        if is_vega_factor:
+            f = lambda x: 1
 
         if risk_class == 'IR':
             Tb = params.IR_G10_DKK_Threshold
@@ -46,6 +49,8 @@ class Margin(object):
 
             #CR = max(1, math.sqrt(abs(pos_gp.AmountUSD.sum() / Tb)))
             CR = 100
+            if is_vega_factor:
+                CR = 1
 
         elif risk_class in ['CreditQ', 'CreditNonQ']:
             if risk_class == 'CreditQ':
@@ -294,6 +299,7 @@ class Margin(object):
         else:
             group = 'Bucket'
 
+        pdb.set_trace()
         pos_delta_gp_all = []
         for gp in pos_delta[group].sort_values().unique():
             pos_delta_gp = pos_delta[pos_delta[group] == gp].copy()
@@ -344,6 +350,7 @@ class Margin(object):
                 delta_margin = delta_margin + pos_delta_residual.K
 
         ret_mm = pos_delta[['ProductClass', 'RiskClass']].copy()
+        ret_mm.drop_duplicates(inplace=True)
         ret_mm['Margin'] = delta_margin
 
         return ret_mm
