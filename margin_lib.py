@@ -4,7 +4,6 @@ import os
 import logging
 import math
 from scipy.stats import norm
-import pdb
 
 ##############################
 # Setup Logging Configuration
@@ -299,7 +298,6 @@ class Margin(object):
         else:
             group = 'Bucket'
 
-        pdb.set_trace()
         pos_delta_gp_all = []
         for gp in pos_delta[group].sort_values().unique():
             pos_delta_gp = pos_delta[pos_delta[group] == gp].copy()
