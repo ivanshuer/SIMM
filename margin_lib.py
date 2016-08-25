@@ -319,21 +319,23 @@ class Margin(object):
         pos_delta_non_residual = pos_delta[pos_delta.Group != 'Residual'].copy()
         pos_delta_residual = pos_delta[pos_delta.Group == 'Residual'].copy()
 
-        S = self.build_non_residual_S(pos_delta_non_residual, params)
+        delta_margin = 0
+        if len(pos_delta_non_residual) > 0:
+            S = self.build_non_residual_S(pos_delta_non_residual, params)
 
-        if risk_class != 'FX':
-            SS = np.mat(S) * np.mat(g) * np.mat(np.reshape(S, (len(S), 1)))
-            SS = SS.item(0)
-        else:
-            SS = 0
+            if risk_class != 'FX':
+                SS = np.mat(S) * np.mat(g) * np.mat(np.reshape(S, (len(S), 1)))
+                SS = SS.item(0)
+            else:
+                SS = 0
 
-        delta_margin = math.sqrt(np.dot(pos_delta_non_residual.K, pos_delta_non_residual.K) + SS)
+            delta_margin = math.sqrt(np.dot(pos_delta_non_residual.K, pos_delta_non_residual.K) + SS)
 
-        if is_curvature_factor:
-            theta = min(pos_delta_non_residual.CVR_sum.sum() / pos_delta_non_residual.CVR_abs_sum.sum(), 0)
-            lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
+            if is_curvature_factor:
+                theta = min(pos_delta_non_residual.CVR_sum.sum() / pos_delta_non_residual.CVR_abs_sum.sum(), 0)
+                lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
 
-            delta_margin = max(lambda_const * delta_margin + pos_delta_non_residual.CVR_sum.sum(), 0)
+                delta_margin = max(lambda_const * delta_margin + pos_delta_non_residual.CVR_sum.sum(), 0)
 
         if len(pos_delta_residual) > 0:
             if is_curvature_factor:

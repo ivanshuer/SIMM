@@ -323,6 +323,7 @@ def calculate_in_product_margin(pos_gp, params):
         product_margin = math.sqrt(product_margin.item(0))
 
         pos_product = pos_product[['ProductClass']].copy()
+        pos_product.drop_duplicates(inplace=True)
         pos_product['Margin'] = product_margin
 
         pos_product_margin.append(pos_product)
@@ -338,7 +339,7 @@ def calculate_simm(pos, params):
     product_margin = []
 
     for product in pos.ProductClass.unique():
-        for risk in pos.RiskClass.unique():
+        for risk in pos[pos.ProductClass == product].RiskClass.unique():
             logger.info('Calcualte SIMM for {0} and {1}'.format(product, risk))
             pos_product = pos[(pos.ProductClass == product) & (pos.RiskClass == risk)].copy()
 

@@ -23,6 +23,13 @@ C11,RatesFX,S_IR_11,Risk_IRCurve,INR,3,2y,Libor3m,5000,USD,5000
 ,RatesFX,S_FX_4a,Risk_FX,JPY,,,,-2300000,USD,-2300000
 ,RatesFX,S_FX_4b,Risk_FX,EUR,,,,2300000,USD,2300000
 ,,,,,,,,,,
+,Equity,S_EQ_1,Risk_Equity,ISIN:AT0000730007,6,,,20000,USD,20000
+,Equity,S_EQ_2,Risk_Equity,ISIN:AT0000937503,7,,,-40000,USD,-40000
+,Credit,S_EQ_12,Risk_Equity,ISIN:UNKNOWN1,Residual,,,20000,USD,20000
+,,,,,,,,,,
+,Commodity,S_CM_1,Risk_Commodity,NA Natural Gas Gulf Coast,6,,,20000,USD,20000
+,Commodity,S_CM_2,Risk_Commodity,Crude Oil Americas,2,,,-40000,USD,-40000
+,,,,,,,,,,
 ,RatesFX,S_IRV_1,Risk_IRVol,USD,,5y,,5000,USD,5000
 ,RatesFX,S_IRV_2,Risk_IRVol,JPY,,2y,,-5000,USD,-5000
 ,RatesFX,S_IRV_3,Risk_IRVol,GBP,,1y,,3000,USD,3000

@@ -61,7 +61,7 @@ def main():
         simm = pd.DataFrame([simm], columns=['SIMM'])
         simm.to_csv('simm_output.csv', index=False)
 
-        logger.info('Total SIMM is {0}'.format(simm.SIMM.values[0]))
+        logger.info('Total SIMM is {0:,}'.format(int(round(simm.SIMM.values[0]))))
     else:
         logger.info('No trade has SIMM')
 
