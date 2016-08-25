@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import logging
 import math
+import re
 from margin_lib import Margin
 from vega_margin import VegaMargin
 
@@ -27,8 +28,36 @@ if not len(logger.handlers):
 class CurvatureMargin(Margin):
 
     def __init__(self):
-        self.__margin = 'Curvature'
+        Margin.__init__(self, 'Curvature')
         self.__vega_loader = VegaMargin()
+
+    def calc_scaling(self, gp):
+        label = gp.Label1.unique()[0]
+        [space, num, freq] = re.split('(\d+)', label)
+        num = float(num)
+
+        if freq == 'w':
+            num_days = num * 7
+        elif freq == 'm':
+            num_days = num/12 * 365
+        elif freq == 'y':
+            num_days = num * 365
+        else:
+            logger.info('wrong label 1 {0}'.format(label))
+            gp['SF'] = 1.0
+            return gp
+
+        scale = 0.5 * min(1, 14 / num_days)
+        gp['SF'] = scale
+
+        return gp
+
+    def input_scaling(self, pos):
+
+        pos = pos.groupby(['Label1']).apply(self.calc_scaling)
+        pos['AmountUSD'] = pos['AmountUSD'] * pos['SF']
+
+        return pos
 
     def net_sensitivities(self, pos, params):
         return self.__vega_loader.net_sensitivities(pos, params)

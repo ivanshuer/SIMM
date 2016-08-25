@@ -26,7 +26,7 @@ if not len(logger.handlers):
 class VegaMargin(Margin):
 
     def __init__(self):
-        self.__margin = 'Vega'
+        Margin.__init__(self, 'Vega')
 
     def net_sensitivities(self, pos, params):
         risk_class = pos.RiskClass.unique()[0]

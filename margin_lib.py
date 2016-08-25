@@ -24,6 +24,8 @@ if not len(logger.handlers):
 ###############################
 
 class Margin(object):
+    def __init__(self, margin):
+        self.__margin = margin
 
     def build_concentration_risk(self, pos_gp, params):
         risk_class = pos_gp.RiskClass.unique()[0]
@@ -282,14 +284,15 @@ class Margin(object):
 
     def margin_risk_factor(self, pos, params):
         """Calculate Delta Margin for IR Class"""
+        if self.__margin == 'Curvature':
+            pos = self.input_scaling(pos)
 
         pos_delta = self.net_sensitivities(pos, params)
 
         product_class = pos_delta.ProductClass.unique()[0]
         risk_class = pos_delta.RiskClass.unique()[0]
         risk_type = pos_delta.RiskType.unique()[0]
-
-        is_curvature_factor = risk_type in params.Curvature_Factor
+        #is_curvature_factor = risk_type in params.Curvature_Factor
 
         if risk_class == 'IR':
             group = 'Qualifier'
@@ -331,23 +334,23 @@ class Margin(object):
 
             delta_margin = math.sqrt(np.dot(pos_delta_non_residual.K, pos_delta_non_residual.K) + SS)
 
-            if is_curvature_factor:
+            if self.__margin == 'Curvature':
                 theta = min(pos_delta_non_residual.CVR_sum.sum() / pos_delta_non_residual.CVR_abs_sum.sum(), 0)
                 lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
 
                 delta_margin = max(lambda_const * delta_margin + pos_delta_non_residual.CVR_sum.sum(), 0)
 
         if len(pos_delta_residual) > 0:
-            if is_curvature_factor:
+            if self.__margin == 'Curvature':
                 theta = min(pos_delta_residual.CVR_sum / pos_delta_residual.CVR_abs_sum, 0)
                 lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
 
                 delta_margin = delta_margin + max(pos_delta_residual.CVR_sum + lambda_const * pos_delta_residual.K, 0)
-
-                if risk_class == 'IR':
-                    delta_margin = delta_margin * params.IR_Curvature_Margin_Scale
             else:
                 delta_margin = delta_margin + pos_delta_residual.K
+
+        if self.__margin == 'Curvature' and risk_class == 'IR':
+            delta_margin = delta_margin * params.IR_Curvature_Margin_Scale
 
         ret_mm = pos_delta[['ProductClass', 'RiskClass']].copy()
         ret_mm.drop_duplicates(inplace=True)
