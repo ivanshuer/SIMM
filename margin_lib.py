@@ -32,12 +32,12 @@ class Margin(object):
         if risk_class not in ['IR', 'FX']:
             bucket = pos_gp.Bucket.unique()[0]
 
-        is_vega_factor = pos_gp.RiskType.unique()[0] in params.Vega_Factor
-        is_curvature_factor = pos_gp.RiskType.unique()[0] in params.Curvature_Factor
+        #is_vega_factor = pos_gp.RiskType.unique()[0] in params.Vega_Factor
+        #is_curvature_factor = pos_gp.RiskType.unique()[0] in params.Curvature_Factor
 
         #f = lambda x: max(1, math.sqrt(abs(x) / Tb))
         f = lambda x: 100
-        if is_vega_factor:
+        if self.__margin == 'Vega' or self.__margin == 'Curvature':
             f = lambda x: 1
 
         if risk_class == 'IR':
@@ -50,7 +50,7 @@ class Margin(object):
 
             #CR = max(1, math.sqrt(abs(pos_gp.AmountUSD.sum() / Tb)))
             CR = 100
-            if is_vega_factor:
+            if self.__margin == 'Vega' or self.__margin == 'Curvature':
                 CR = 1
 
         elif risk_class in ['CreditQ', 'CreditNonQ']:
@@ -77,7 +77,7 @@ class Margin(object):
                 elif bucket in params.Equity_INDEX:
                     Tb = params.Equity_INDEX_Threshold
 
-                if is_vega_factor or is_curvature_factor:
+                if self.__margin == 'Vega' or self.__margin == 'Curvature':
                     tenors = params.Equity_Tenor
             elif risk_class == 'Commodity':
                 if bucket in params.Commodity_FUEL:
@@ -87,18 +87,18 @@ class Margin(object):
                 elif bucket in params.Commodity_OTHER:
                     Tb = params.Commodity_OTHER_Threshold
 
-                if is_vega_factor or is_curvature_factor:
+                if self.__margin == 'Vega' or self.__margin == 'Curvature':
                     tenors = params.Commodity_Tenor
             elif risk_class == 'FX':
                 Tb = params.FX_Threshold
 
-                if is_vega_factor or is_curvature_factor:
+                if self.__margin == 'Vega' or self.__margin == 'Curvature':
                     tenors = params.FX_Tenor
 
             CR = pos_gp.AmountUSD.apply(f)
             CR = CR.values
 
-            if is_vega_factor or is_curvature_factor:
+            if self.__margin == 'Vega' or self.__margin == 'Curvature':
                 CR = np.repeat(CR, len(tenors))
 
         return CR
@@ -121,11 +121,11 @@ class Margin(object):
             fai.fill(params.IR_Fai)
             np.fill_diagonal(fai, 1)
 
-            if is_vega_factor or is_curvature_factor:
+            if self.__margin == 'Vega' or self.__margin == 'Curvature':
                 fai = 1
 
             rho = params.IR_Corr
-            if is_curvature_factor:
+            if self.__margin == 'Curvature':
                 rho = rho * rho
 
             Corr = np.kron(rho, fai)
@@ -189,7 +189,7 @@ class Margin(object):
             elif risk_class == 'FX':
                 rho = params.FX_Rho
 
-            if is_curvature_factor:
+            if self.__margin == 'Curvature':
                 rho = rho * rho
                 F.fill(1)
 
@@ -209,7 +209,7 @@ class Margin(object):
             all_curr = pos_delta.Group.unique()
             g = np.ones((len(all_curr), len(all_curr)))
 
-            if not is_curvature_factor:
+            if not self.__margin == 'Curvature':
                 for i in range(len(all_curr)):
                     for j in range(len(all_curr)):
                         CRi = pos_delta.iloc[[i]].CR.values[0]
@@ -227,7 +227,7 @@ class Margin(object):
         elif risk_class == 'Commodity':
             g = params.Commodity_Corr
 
-        if is_curvature_factor:
+        if self.__margin == 'Curvature':
             g = pow(g, 2)
 
         g = np.mat(g)
