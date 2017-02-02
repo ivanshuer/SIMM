@@ -27,6 +27,52 @@ class Margin(object):
     def __init__(self, margin):
         self.__margin = margin
 
+    def calculate_CR(self, gp, params):
+
+        if gp['RiskClass'] == 'IR':
+            if gp['Qualifier'] in params.Low_Vol_Curr:
+                if self.__margin == 'Delta':
+                    Tb = params.IR_Delta_Low_Vol_Threshold
+                elif self.__margin in ['Vega', 'Curvature']:
+                    Tb = params.IR_Vega_Low_Vol_Threshold
+            elif gp['Qualifier'] in params.Reg_Vol_Less_Well_Traded_Curr:
+                if self.__margin == 'Delta':
+                    Tb = params.IR_Delta_Reg_Vol_Less_Well_Traded_Threshold
+                elif self.__margin in ['Vega', 'Curvature']:
+                    Tb = params.IR_Vega_Reg_Vol_Less_Well_Traded_Threshold
+            elif gp['Qualifier'] in params.Reg_Vol_Well_Traded_Curr:
+                if self.__margin == 'Delta':
+                    Tb = params.IR_Delta_Reg_Vol_Well_Traded_Threshold
+                elif self.__margin in ['Vega', 'Curvature']:
+                    Tb = params.IR_Vega_Reg_Vol_Well_Traded_Threshold
+            else:
+                if self.__margin == 'Delta':
+                    Tb = params.IR_Delta_High_Vol_Threshold
+                elif self.__margin in ['Vega', 'Curvature']:
+                    Tb = params.IR_Vega_High_Vol_Threshold
+        elif gp['RiskClass'] == 'FX':
+            if self.__margin == 'Delta':
+                if gp['Qualifier'] in params.FX_Significantly_Material:
+                    Tb = params.FX_Significantly_Material_FX_Threshold
+                elif gp['Qualifier'] in params.FX_Frequently_Traded:
+                    Tb = params.FX_Frequently_Traded_Threshold
+                else:
+                    Tb = params.FX_Others_Threshold
+            elif self.__margin in ['Vega', 'Curvature']:
+                curr1 = gp['Qualifier'][0:3]
+                curr2 = gp['Qualifier'][3:]
+
+                if curr1 in params.FX_Significantly_Material and curr2 in params.FX_Significantly_Material:
+                    Tb = params.FX_Vega_C1_C1_Threshold
+                elif curr1 in params.FX_Significantly_Material and curr2 in params.FX_Frequently_Traded:
+                    Tb = params.FX_Vega_C1_C2_Threshold
+                elif curr1 in params.FX_Significantly_Material:
+                    Tb = params.FX_Vega_C1_C3_Threshold
+                else:
+                    Tb = params.FX_Vega_Others_Threshold
+
+        return max(1, math.sqrt(abs(gp['AmountUSD']) / Tb))
+
     def build_concentration_risk(self, pos_gp, params):
         risk_class = pos_gp.RiskClass.unique()[0]
         if risk_class not in ['IR', 'FX']:
@@ -41,17 +87,18 @@ class Margin(object):
             f = lambda x: 1
 
         if risk_class == 'IR':
-            Tb = params.IR_G10_DKK_Threshold
+            #Tb = params.IR_G10_DKK_Threshold
 
-            gp_curr = pos_gp.Qualifier.unique()[0]
+            #gp_curr = pos_gp.Qualifier.unique()[0]
 
-            if not gp_curr in params.G10_Curr:
-                Tb = params.IR_Other_Threshold
+            #if not gp_curr in params.G10_Curr:
+            #    Tb = params.IR_Other_Threshold
 
             #CR = max(1, math.sqrt(abs(pos_gp.AmountUSD.sum() / Tb)))
-            CR = 100
-            if self.__margin == 'Vega' or self.__margin == 'Curvature':
-                CR = 1
+            #CR = 100
+            #if self.__margin == 'Vega' or self.__margin == 'Curvature':
+            #    CR = 1
+            CR = pos_gp.apply(self.calculate_CR, axis=1, params=params)
 
         elif risk_class in ['CreditQ', 'CreditNonQ']:
             if risk_class == 'CreditQ':
@@ -79,6 +126,8 @@ class Margin(object):
 
                 if self.__margin == 'Vega' or self.__margin == 'Curvature':
                     tenors = params.Equity_Tenor
+
+                CR = pos_gp.AmountUSD.apply(f)
             elif risk_class == 'Commodity':
                 if bucket in params.Commodity_FUEL:
                     Tb = params.Commodity_FUEL_Threshold
@@ -89,13 +138,15 @@ class Margin(object):
 
                 if self.__margin == 'Vega' or self.__margin == 'Curvature':
                     tenors = params.Commodity_Tenor
+
+                CR = pos_gp.AmountUSD.apply(f)
             elif risk_class == 'FX':
-                Tb = params.FX_Threshold
+                #Tb = params.FX_Threshold
+                CR = pos_gp.apply(self.calculate_CR, axis=1, params=params)
 
                 if self.__margin == 'Vega' or self.__margin == 'Curvature':
                     tenors = params.FX_Tenor
 
-            CR = pos_gp.AmountUSD.apply(f)
             CR = CR.values
 
             if self.__margin == 'Vega' or self.__margin == 'Curvature':
