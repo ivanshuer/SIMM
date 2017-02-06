@@ -29,6 +29,7 @@ def main():
     # Setup input argument
     parser = argparse.ArgumentParser(description='SIMM Calculation.')
     parser.add_argument('-f', dest='input_file', type=str, required=True, help='simm input csv file')
+    #args = parser.parse_args(['-f' 'simm_input_1.csv'])
     args = parser.parse_args()
 
     # Create output directory for product and risk class

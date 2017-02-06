@@ -4,6 +4,7 @@ import os
 import logging
 import math
 from margin_lib import Margin
+from scipy.stats import norm
 
 ##############################
 # Setup Logging Configuration
@@ -64,7 +65,18 @@ class VegaMargin(Margin):
                 idx = self.find_factor_idx(row['Label1'], params.IR_Tenor)
                 if idx >= 0:
                     s[idx] = row['AmountUSD']
+        elif risk_class == 'FX':
+            pos_gp_risk_factor = pos_gp.groupby(['ProductClass', 'RiskType', 'Label1', 'RiskClass']).agg({'AmountUSD': np.sum})
+            pos_gp_risk_factor.reset_index(inplace=True)
 
+            s = np.zeros(len(params.FX_Tenor))
+
+            for i, row in pos_gp_risk_factor.iterrows():
+                idx = self.find_factor_idx(row['Label1'], params.FX_Tenor)
+                if idx >= 0:
+                    s[idx] = row['AmountUSD']
+
+            s = s * params.FX_Weights * math.sqrt(365.0/14) / norm.ppf(0.99)
         else:
             if risk_class == 'CreditQ':
                 tenors = params.CreditQ_Tenor
@@ -72,8 +84,6 @@ class VegaMargin(Margin):
                 tenors = params.Equity_Tenor
             elif risk_class == 'Commodity':
                 tenors = params.Commodity_Tenor
-            elif risk_class == 'FX':
-                tenors = params.FX_Tenor
 
             s = np.zeros(pos_gp.Qualifier.nunique() * len(tenors))
 
@@ -84,7 +94,6 @@ class VegaMargin(Margin):
                     idx = self.find_factor_idx(row['Label1'], tenors)
                     if idx >= 0:
                         s[idx + j * len(tenors)] = row['AmountUSD']
-
         return s
 
     def build_risk_weights(self, pos_gp, params):

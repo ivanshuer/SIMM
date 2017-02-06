@@ -98,7 +98,10 @@ class Margin(object):
             #CR = 100
             #if self.__margin == 'Vega' or self.__margin == 'Curvature':
             #    CR = 1
+            pos_gp = pos_gp.groupby(['ProductClass', 'RiskType', 'Qualifier', 'RiskClass']).agg({'AmountUSD': np.sum})
+            pos_gp.reset_index(inplace=True)
             CR = pos_gp.apply(self.calculate_CR, axis=1, params=params)
+            CR = CR.values
 
         elif risk_class in ['CreditQ', 'CreditNonQ']:
             if risk_class == 'CreditQ':
