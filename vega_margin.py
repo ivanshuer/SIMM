@@ -29,10 +29,24 @@ class VegaMargin(Margin):
     def __init__(self):
         Margin.__init__(self, 'Vega')
 
+    def change_FX_ticker_order(self, gp):
+        curr1 = gp['Qualifier'][0:3]
+        curr2 = gp['Qualifier'][3:6]
+
+        curr_pair = set([curr1, curr2])
+        curr_pair = "".join(curr_pair)
+
+        gp['Qualifier'] = curr_pair
+
+        return gp
+
     def net_sensitivities(self, pos, params):
         risk_class = pos.RiskClass.unique()[0]
 
-        if risk_class in ['IR', 'FX']:
+        if risk_class == 'IR':
+            factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Label1', 'RiskClass']
+        elif risk_class == 'FX':
+            pos = pos.apply(self.change_FX_ticker_order, axis=1)
             factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Label1', 'RiskClass']
         elif risk_class in ['CreditQ', 'CreditNonQ', 'Equity', 'Commodity']:
             factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'RiskClass']
@@ -40,6 +54,9 @@ class VegaMargin(Margin):
         pos_gp = pos.groupby(factor_group)
         pos_vega = pos_gp.agg({'AmountUSD': np.sum})
         pos_vega.reset_index(inplace=True)
+
+        if risk_class in ['Euqity', 'FX', 'Commodity']:
+            pos_vega['AmountUSD'] = pos_vega['AmountUSD'] * params.FX_Weights * math.sqrt(365.0 / 14) / norm.ppf(0.99)
 
         return pos_vega
 
@@ -65,18 +82,6 @@ class VegaMargin(Margin):
                 idx = self.find_factor_idx(row['Label1'], params.IR_Tenor)
                 if idx >= 0:
                     s[idx] = row['AmountUSD']
-        elif risk_class == 'FX':
-            pos_gp_risk_factor = pos_gp.groupby(['ProductClass', 'RiskType', 'Label1', 'RiskClass']).agg({'AmountUSD': np.sum})
-            pos_gp_risk_factor.reset_index(inplace=True)
-
-            s = np.zeros(len(params.FX_Tenor))
-
-            for i, row in pos_gp_risk_factor.iterrows():
-                idx = self.find_factor_idx(row['Label1'], params.FX_Tenor)
-                if idx >= 0:
-                    s[idx] = row['AmountUSD']
-
-            s = s * params.FX_Weights * math.sqrt(365.0/14) / norm.ppf(0.99)
         else:
             if risk_class == 'CreditQ':
                 tenors = params.CreditQ_Tenor
@@ -84,6 +89,8 @@ class VegaMargin(Margin):
                 tenors = params.Equity_Tenor
             elif risk_class == 'Commodity':
                 tenors = params.Commodity_Tenor
+            elif risk_class == 'FX':
+                tenors = params.FX_Tenor
 
             s = np.zeros(pos_gp.Qualifier.nunique() * len(tenors))
 

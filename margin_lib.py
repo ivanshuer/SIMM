@@ -60,18 +60,21 @@ class Margin(object):
                     Tb = params.FX_Others_Threshold
             elif self.__margin in ['Vega', 'Curvature']:
                 curr1 = gp['Qualifier'][0:3]
-                curr2 = gp['Qualifier'][3:]
+                curr2 = gp['Qualifier'][3:6]
 
                 if curr1 in params.FX_Significantly_Material and curr2 in params.FX_Significantly_Material:
                     Tb = params.FX_Vega_C1_C1_Threshold
-                elif curr1 in params.FX_Significantly_Material and curr2 in params.FX_Frequently_Traded:
+                elif (curr1 in params.FX_Significantly_Material and curr2 in params.FX_Frequently_Traded) or \
+                        (curr1 in params.FX_Frequently_Traded and curr2 in params.FX_Significantly_Material):
                     Tb = params.FX_Vega_C1_C2_Threshold
-                elif curr1 in params.FX_Significantly_Material:
+                elif curr1 in params.FX_Significantly_Material or curr2 in params.FX_Significantly_Material:
                     Tb = params.FX_Vega_C1_C3_Threshold
                 else:
                     Tb = params.FX_Vega_Others_Threshold
 
-        return max(1, math.sqrt(abs(gp['AmountUSD']) / Tb))
+        gp['CR'] = max(1, math.sqrt(abs(gp['AmountUSD']) / Tb))
+
+        return gp[['Qualifier', 'CR']]
 
     def build_concentration_risk(self, pos_gp, params):
         risk_class = pos_gp.RiskClass.unique()[0]
@@ -98,9 +101,9 @@ class Margin(object):
             #CR = 100
             #if self.__margin == 'Vega' or self.__margin == 'Curvature':
             #    CR = 1
-            pos_gp = pos_gp.groupby(['ProductClass', 'RiskType', 'Qualifier', 'RiskClass']).agg({'AmountUSD': np.sum})
-            pos_gp.reset_index(inplace=True)
-            CR = pos_gp.apply(self.calculate_CR, axis=1, params=params)
+            pos_gp_CR = pos_gp.groupby(['ProductClass', 'RiskType', 'Qualifier', 'RiskClass']).agg({'AmountUSD': np.sum})
+            pos_gp_CR.reset_index(inplace=True)
+            CR = pos_gp_CR.apply(self.calculate_CR, axis=1, params=params)
             CR = CR.values
 
         elif risk_class in ['CreditQ', 'CreditNonQ']:
@@ -144,8 +147,11 @@ class Margin(object):
 
                 CR = pos_gp.AmountUSD.apply(f)
             elif risk_class == 'FX':
-                #Tb = params.FX_Threshold
-                CR = pos_gp.apply(self.calculate_CR, axis=1, params=params)
+                pos_gp_CR = pos_gp.groupby(['ProductClass', 'RiskType', 'Qualifier', 'RiskClass']).agg({'AmountUSD': np.sum})
+                pos_gp_CR.reset_index(inplace=True)
+                CR = pos_gp_CR.apply(self.calculate_CR, axis=1, params=params)
+                CR = pd.merge(pos_gp_CR, CR, how='left')
+                CR = CR['CR'].copy()
 
                 if self.__margin == 'Vega' or self.__margin == 'Curvature':
                     tenors = params.FX_Tenor
@@ -338,6 +344,7 @@ class Margin(object):
 
     def margin_risk_factor(self, pos, params):
         """Calculate Delta Margin for IR Class"""
+
         if self.__margin == 'Curvature':
             pos = self.input_scaling(pos)
 
