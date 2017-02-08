@@ -104,7 +104,7 @@ class Margin(object):
             pos_gp_CR = pos_gp.groupby(['ProductClass', 'RiskType', 'Qualifier', 'RiskClass']).agg({'AmountUSD': np.sum})
             pos_gp_CR.reset_index(inplace=True)
             CR = pos_gp_CR.apply(self.calculate_CR, axis=1, params=params)
-            CR = CR.values
+            CR = CR['CR'].values
 
         elif risk_class in ['CreditQ', 'CreditNonQ']:
             if risk_class == 'CreditQ':
