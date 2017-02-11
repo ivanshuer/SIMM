@@ -101,8 +101,14 @@ class Margin(object):
             #CR = 100
             #if self.__margin == 'Vega' or self.__margin == 'Curvature':
             #    CR = 1
-            pos_gp_CR = pos_gp.groupby(['ProductClass', 'RiskType', 'Qualifier', 'RiskClass']).agg({'AmountUSD': np.sum})
+            pos_gp_R = pos_gp.copy()
+            for type in pos_gp_R['RiskType']:  #add inflation to the groupby list as well
+                if type == 'Risk_Inflation':
+                    pos_gp_R['RiskType'] = "Risk_IRCurve"
+
+            pos_gp_CR = pos_gp_R.groupby(['ProductClass', 'RiskType', 'Qualifier', 'RiskClass']).agg({'AmountUSD': np.sum}) #if inflation present, it is not aggregated
             pos_gp_CR.reset_index(inplace=True)
+
             CR = pos_gp_CR.apply(self.calculate_CR, axis=1, params=params)
             CR = CR['CR'].values
 

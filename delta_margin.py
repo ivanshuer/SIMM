@@ -191,7 +191,7 @@ class DeltaMargin(Margin):
 
         Corr = self.build_in_bucket_correlation(gp, params)
 
-        K = np.mat(WS) * np.mat(Corr) * np.mat(np.reshape(WS, (len(WS), 1)))
+        K = np.mat(WS) * np.mat(Corr) * np.mat(np.reshape(WS, (len(WS), 1))) ##not clear here
         K = math.sqrt(K.item(0))
 
         if gp.RiskType.nunique() > 1:
