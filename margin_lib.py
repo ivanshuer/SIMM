@@ -84,8 +84,8 @@ class Margin(object):
         #is_vega_factor = pos_gp.RiskType.unique()[0] in params.Vega_Factor
         #is_curvature_factor = pos_gp.RiskType.unique()[0] in params.Curvature_Factor
 
-        #f = lambda x: max(1, math.sqrt(abs(x) / Tb))
-        f = lambda x: 100
+        f = lambda x: max(1, math.sqrt(abs(x) / Tb))
+        #f = lambda x: 100
         if self.__margin == 'Vega' or self.__margin == 'Curvature':
             f = lambda x: 1
 
@@ -141,12 +141,19 @@ class Margin(object):
 
                 CR = pos_gp.AmountUSD.apply(f)
             elif risk_class == 'Commodity':
-                if bucket in params.Commodity_FUEL:
-                    Tb = params.Commodity_FUEL_Threshold
-                elif bucket in params.Commodity_POWER:
-                    Tb = params.Commodity_POWER_Threshold
-                elif bucket in params.Commodity_OTHER:
-                    Tb = params.Commodity_OTHER_Threshold
+                #if bucket in params.Commodity_FUEL:
+                #    Tb = params.Commodity_FUEL_Threshold
+                #elif bucket in params.Commodity_POWER:
+                #    Tb = params.Commodity_POWER_Threshold
+                #elif bucket in params.Commodity_OTHER:
+                #    Tb = params.Commodity_OTHER_Threshold
+
+                weights= params.Commodity_Threshold
+                num_factors=len(pos_gp.Qualifier)
+                bucket = pd.DataFrame(pos_gp.Bucket.unique(), columns=['bucket'])
+                Tb = pd.merge(bucket, weights, left_on=['bucket'], right_on=['bucket'], how='inner')
+                Tb = np.array(Tb.threshold.values[0])
+
 
                 if self.__margin == 'Vega' or self.__margin == 'Curvature':
                     tenors = params.Commodity_Tenor
