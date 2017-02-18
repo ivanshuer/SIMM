@@ -44,7 +44,7 @@ IR_Weights = pd.read_csv('{0}/ir_weights_params.csv'.format(config_folder), dtyp
 IR_Corr = pd.read_csv('{0}/ir_correlation_params.csv'.format(config_folder))
 IR_Fai = 0.982
 IR_Gamma = 0.27
-IR_Inflation_Weights = 0.32
+IR_Inflation_Weights = 32
 IR_Inflation_Rho = 0.33
 IR_VRW = 0.21
 IR_Curvature_Margin_Scale = 2.3
@@ -95,6 +95,8 @@ Commodity_OTHER_Threshold = 1.0
 Commodity_Weights = pd.read_csv('{0}/commodity_weights_params.csv'.format(config_folder), dtype={'bucket': str})
 Commodity_Rho = pd.read_csv('{0}/commodity_in_bucket_correlation_params.csv'.format(config_folder), dtype={'bucket': str})
 Commodity_Corr = pd.read_csv('{0}/commodity_correlation_params.csv'.format(config_folder))
+Commodity_Threshold = pd.read_csv('{0}/commodity_DeltaThreshold_params.csv'.format(config_folder), dtype={'bucket': str})
+Commodity_VegaThreshold = pd.read_csv('{0}/commodity_VegaThreshold_params.csv'.format(config_folder), dtype={'bucket': str})
 Commodity_VRW = 0.36
 
 FX_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']

@@ -46,7 +46,7 @@ class DeltaMargin(Margin):
 
         pos_inflation = pos[pos.RiskType == 'Risk_Inflation'].copy()
         if len(pos_inflation) > 0:
-            agg_amount = pos_inflation.AmountUSD.sum()
+            agg_amount = pos_inflation.AmountUSD.sum()  # issue unsolved: should not aggregate different inflation currency together
             pos_inflation = pos_inflation[factor_group].copy()
             pos_inflation.drop_duplicates(inplace=True)
             pos_inflation['AmountUSD'] = agg_amount
@@ -120,10 +120,11 @@ class DeltaMargin(Margin):
 
         else:
             s = np.zeros(pos_gp.Qualifier.nunique())
+            index = 0
 
             for i, row in pos_gp.iterrows():
-                s[i] = row['AmountUSD']
-
+                s[index] = row['AmountUSD']  #s[i] will go about of bound if input has two comdty bucket
+                index = index+1
         return s
 
     def build_risk_weights(self, pos_gp, params):
@@ -191,7 +192,7 @@ class DeltaMargin(Margin):
 
         Corr = self.build_in_bucket_correlation(gp, params)
 
-        K = np.mat(WS) * np.mat(Corr) * np.mat(np.reshape(WS, (len(WS), 1)))
+        K = np.mat(WS) * np.mat(Corr) * np.mat(np.reshape(WS, (len(WS), 1))) ##not clear here
         K = math.sqrt(K.item(0))
 
         if gp.RiskType.nunique() > 1:
