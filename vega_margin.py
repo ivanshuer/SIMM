@@ -55,10 +55,27 @@ class VegaMargin(Margin):
         pos_vega = pos_gp.agg({'AmountUSD': np.sum})
         pos_vega.reset_index(inplace=True)
 
-        if risk_class in ['Euqity', 'FX', 'Commodity']:
+        #should separate FX and Comdty/Equity, the latter two uses different weight per bucket
+        if risk_class == 'FX':
             pos_vega['AmountUSD'] = pos_vega['AmountUSD'] * params.FX_Weights * math.sqrt(365.0 / 14) / norm.ppf(0.99)
 
-        return pos_vega
+        elif risk_class in ['Equity', 'Commodity']:
+            weights = params.Commdty_Weights
+            bucket = pd.DataFrame(pos_vega.Bucket.as_matrix(), columns =['bucket'])
+            RW = pd.merge(bucket, weights, lef_on=['bucket'], right_on=['bucket'], how='inner')
+            pos_vega['AmountUSD'] = pos_vega['AmountUSD'] * RW.weight * math.sqrt(365.0 / 14) / norm.ppf(0.99)
+
+        #for Equity, FX and Comdty vega should sum over tenor j (Label 1) to get VR input
+        if risk_class in ['Equity', 'Commodity']:
+            pos_vega_gp = pos_vega.groupby['ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'RiskClass'].agg({'AmountUSD': np.sum})
+            pos_vega.gp.reset_index(inplace=True)
+        elif risk_class == 'FX':
+            pos_vega_gp = pos_vega.groupby['ProductClass', 'RiskType', 'Qualifier', 'RiskClass'].agg({'AmountUSD': np.sum})
+            pos_vega.gp.reset_index(inplace=True)
+        else:
+            pos_vega_gp = pos_vega.copy()
+
+        return pos_vega_gp
 
     def find_factor_idx(self, tenor_factor, tenors):
         idx = 0
@@ -83,24 +100,34 @@ class VegaMargin(Margin):
                 if idx >= 0:
                     s[idx] = row['AmountUSD']
         else:
-            if risk_class == 'CreditQ':
-                tenors = params.CreditQ_Tenor
-            elif risk_class == 'Equity':
-                tenors = params.Equity_Tenor
-            elif risk_class == 'Commodity':
-                tenors = params.Commodity_Tenor
-            elif risk_class == 'FX':
-                tenors = params.FX_Tenor
+            #Equity, FX and Comdty should not have tenors in risk factors, removing for Credit as well but should modify later
+            #if risk_class == 'CreditQ':
+            #    tenors = params.CreditQ_Tenor
+            # elif risk_class == 'Equity':
+            #     tenors = params.Equity_Tenor
+            # elif risk_class == 'Commodity':
+            #     tenors = params.Commodity_Tenor
+            # elif risk_class == 'FX':
+            #     tenors = params.FX_Tenor
 
-            s = np.zeros(pos_gp.Qualifier.nunique() * len(tenors))
-
+            # s = np.zeros(pos_gp.Qualifier.nunique() * len(tenors))
+            #
+            # for j in range(pos_gp.Qualifier.nunique()):
+            #     pos_gp_qualifier = pos_gp[pos_gp.Qualifier == pos_gp.sort_values(['Qualifier']).Qualifier.unique()[j]].copy()
+            #
+            #     for i, row in pos_gp_qualifier.iterrows():
+            #         idx = self.find_factor_idx(row['Label1'], tenors)
+            #         if idx >= 0:
+            #             s[idx + j * len(tenors)] = row['AmountUSD']
+            s = np.zeros(pos_gp.Qualifier.nunique())
+            idx = 0
             for j in range(pos_gp.Qualifier.nunique()):
                 pos_gp_qualifier = pos_gp[pos_gp.Qualifier == pos_gp.sort_values(['Qualifier']).Qualifier.unique()[j]].copy()
 
                 for i, row in pos_gp_qualifier.iterrows():
-                    idx = self.find_factor_idx(row['Label1'], tenors)
                     if idx >= 0:
-                        s[idx + j * len(tenors)] = row['AmountUSD']
+                        s[idx] = row['AmountUSD']
+                        idx= idx + 1
         return s
 
     def build_risk_weights(self, pos_gp, params):

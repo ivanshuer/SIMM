@@ -86,8 +86,6 @@ class Margin(object):
 
         f = lambda x: max(1, math.sqrt(abs(x) / Tb))
         #f = lambda x: 100
-        if self.__margin == 'Vega' or self.__margin == 'Curvature':
-            f = lambda x: 1
 
         if risk_class == 'IR':
             #Tb = params.IR_G10_DKK_Threshold
@@ -102,7 +100,7 @@ class Margin(object):
             #if self.__margin == 'Vega' or self.__margin == 'Curvature':
             #    CR = 1
             pos_gp_R = pos_gp.copy()
-            for type in pos_gp_R['RiskType']:  #add inflation to the groupby list as well
+            for type in pos_gp_R['RiskType']:  #add inflation to the groupby list as well by changing it to IRCurve
                 if type == 'Risk_Inflation':
                     pos_gp_R['RiskType'] = "Risk_IRCurve"
 
@@ -141,14 +139,11 @@ class Margin(object):
 
                 CR = pos_gp.AmountUSD.apply(f)
             elif risk_class == 'Commodity':
-                #if bucket in params.Commodity_FUEL:
-                #    Tb = params.Commodity_FUEL_Threshold
-                #elif bucket in params.Commodity_POWER:
-                #    Tb = params.Commodity_POWER_Threshold
-                #elif bucket in params.Commodity_OTHER:
-                #    Tb = params.Commodity_OTHER_Threshold
+                if self.__margin == 'Delta':
+                    weights= params.Commodity_Threshold
+                else:
+                    weights= params.Commodity_VegaThreshold
 
-                weights= params.Commodity_Threshold
                 num_factors=len(pos_gp.Qualifier)
                 bucket = pd.DataFrame(pos_gp.Bucket.unique(), columns=['bucket'])
                 Tb = pd.merge(bucket, weights, left_on=['bucket'], right_on=['bucket'], how='inner')
@@ -171,8 +166,9 @@ class Margin(object):
 
             CR = CR.values
 
-            if self.__margin == 'Vega' or self.__margin == 'Curvature':
-                CR = np.repeat(CR, len(tenors))
+            #for vega and curvature, no tenor is needed, already handled in net_sensitivity
+            # if self.__margin == 'Vega' or self.__margin == 'Curvature':
+            #     CR = np.repeat(CR, len(tenors))
 
         return CR
 
@@ -346,8 +342,8 @@ class Margin(object):
 
                 for i in range(len(params.Commodity_Bucket)):
                     for j in range(len(pos_gp.Group)):
-                        if pos_gp.Group[j] == params.Commodity_Bucket[i]:
-                            S[i] = pos_gp.S[j]
+                        if pos_gp.Group.iloc[j] == params.Commodity_Bucket[i]: #accessing dataframe through key is wrong, should use iloc to acess via location
+                            S[i] = pos_gp.S.iloc[j]
                             break
 
         elif risk_class == 'FX':
@@ -389,7 +385,9 @@ class Margin(object):
         #pos_delta.reset_index(inplace=True, drop=True)
 
         intermediate_path = '{0}\{1}\{2}'.format(os.getcwd(), product_class, risk_class)
-        pos_delta.to_csv('{0}\{1}_margin_group.csv'.format(intermediate_path, risk_type), index=False)
+        #output K and CR for curvature will override previous values from vega, create separte files for each
+        margin_type = self.__margin
+        pos_delta.to_csv('{0}\{1}_{2}_margin_group.csv'.format(intermediate_path, risk_type, margin_type), index=False)
 
         g = self.build_bucket_correlation(pos_delta, params)
 

@@ -95,7 +95,8 @@ Commodity_OTHER_Threshold = 1.0
 Commodity_Weights = pd.read_csv('{0}/commodity_weights_params.csv'.format(config_folder), dtype={'bucket': str})
 Commodity_Rho = pd.read_csv('{0}/commodity_in_bucket_correlation_params.csv'.format(config_folder), dtype={'bucket': str})
 Commodity_Corr = pd.read_csv('{0}/commodity_correlation_params.csv'.format(config_folder))
-Commodity_Threshold = pd.read_csv('{0}/commodity_threshold_params.csv'.format(config_folder), dtype={'bucket': str})
+Commodity_Threshold = pd.read_csv('{0}/commodity_DeltaThreshold_params.csv'.format(config_folder), dtype={'bucket': str})
+Commodity_VegaThreshold = pd.read_csv('{0}/commodity_VegaThreshold_params.csv'.format(config_folder), dtype={'bucket': str})
 Commodity_VRW = 0.36
 
 FX_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']
