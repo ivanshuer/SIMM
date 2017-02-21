@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import logging
 import math
-from margin_lib import Margin
+import margin_lib as mlib
 from scipy.stats import norm
 
 ##############################
@@ -24,10 +24,10 @@ if not len(logger.handlers):
     logger.addHandler(file_handler)
 ###############################
 
-class VegaMargin(Margin):
+class VegaMargin(object):
 
     def __init__(self):
-        Margin.__init__(self, 'Vega')
+        self.__margin = 'Vega'
 
     def change_FX_ticker_order(self, gp):
         curr1 = gp['Qualifier'][0:3]
@@ -121,6 +121,36 @@ class VegaMargin(Margin):
 
         return VRW
 
+    def calculate_CR_Threshold(self, gp, params):
+
+        if gp['RiskClass'] == 'IR':
+            if gp['Qualifier'] in params.IR_Low_Vol_Curr:
+                Thrd = params.IR_CR_Vega_Low_Vol
+            elif gp['Qualifier'] in params.IR_Reg_Vol_Less_Well_Traded_Curr:
+                Thrd = params.IR_CR_Vega_Reg_Vol_Less_Well_Traded
+            elif gp['Qualifier'] in params.IR_Reg_Vol_Well_Traded_Curr:
+                Thrd = params.IR_CR_Vega_Reg_Vol_Well_Traded
+            else:
+                Thrd = params.IR_CR_Vega_High_Vol
+
+        elif gp['RiskClass'] == 'FX':
+            curr1 = gp['Qualifier'][0:3]
+            curr2 = gp['Qualifier'][3:6]
+
+            if curr1 in params.FX_Significantly_Material and curr2 in params.FX_Significantly_Material:
+                Thrd = params.FX_CR_Vega_C1_C1
+            elif (curr1 in params.FX_Significantly_Material and curr2 in params.FX_Frequently_Traded) or \
+                    (curr1 in params.FX_Frequently_Traded and curr2 in params.FX_Significantly_Material):
+                Thrd = params.FX_CR_Vega_C1_C2
+            elif curr1 in params.FX_Significantly_Material or curr2 in params.FX_Significantly_Material:
+                Thrd = params.FX_CR_Vega_C1_C3
+            else:
+                Thrd = params.FX_CR_Vega_Others
+
+        gp['Thrd'] = Thrd
+
+        return gp
+
     def margin_risk_group(self, gp, params):
 
         risk_class = gp.RiskClass.unique()[0]
@@ -136,7 +166,7 @@ class VegaMargin(Margin):
 
         WS = RW * s * CR
 
-        Corr = self.build_in_bucket_correlation(gp, params)
+        Corr = mlib.build_in_bucket_correlation(gp, params, self.__margin, CR)
 
         K = np.mat(WS) * np.mat(Corr) * np.mat(np.reshape(WS, (len(WS), 1)))
         K = math.sqrt(K.item(0))
@@ -159,6 +189,3 @@ class VegaMargin(Margin):
             ret['Group'] = gp['Bucket'].unique()[0]
 
         return ret
-
-
-

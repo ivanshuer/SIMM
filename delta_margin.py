@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import logging
 import math
-from margin_lib import Margin
+import margin_lib as mlib
 
 ##############################
 # Setup Logging Configuration
@@ -23,10 +23,10 @@ if not len(logger.handlers):
     logger.addHandler(file_handler)
 ###############################
 
-class DeltaMargin(Margin):
+class DeltaMargin(object):
 
     def __init__(self):
-        Margin.__init__(self, 'Delta')
+        self.__margin = 'Delta'
 
     def net_sensitivities(self, pos, params):
         risk_class = pos.RiskClass.unique()[0]
@@ -174,6 +174,30 @@ class DeltaMargin(Margin):
 
         return RW
 
+    def calculate_CR_Threshold(self, gp, params):
+
+        if gp['RiskClass'] == 'IR':
+            if gp['Qualifier'] in params.IR_Low_Vol_Curr:
+                Thrd = params.IR_CR_Delta_Low_Vol
+            elif gp['Qualifier'] in params.IR_Reg_Vol_Less_Well_Traded_Curr:
+                Thrd = params.IR_CR_Delta_Reg_Vol_Less_Well_Traded
+            elif gp['Qualifier'] in params.IR_Reg_Vol_Well_Traded_Curr:
+                Thrd = params.IR_CR_Delta_Reg_Vol_Well_Traded
+            else:
+                Thrd = params.IR_CR_Delta_High_Vol
+
+        elif gp['RiskClass'] == 'FX':
+            if gp['Qualifier'] in params.FX_Significantly_Material:
+                Thrd = params.FX_CR_Delta_C1
+            elif gp['Qualifier'] in params.FX_Frequently_Traded:
+                Thrd = params.FX_CR_Delta_C2
+            else:
+                Thrd = params.FX_CR_Delta_C3
+
+        gp['Thrd'] = Thrd
+
+        return gp
+
     def margin_risk_group(self, gp, params):
 
         risk_class = gp.RiskClass.unique()[0]
@@ -189,7 +213,7 @@ class DeltaMargin(Margin):
 
         WS = RW * s * CR
 
-        Corr = self.build_in_bucket_correlation(gp, params)
+        Corr = mlib.build_in_bucket_correlation(gp, params, self.__margin, CR)
 
         K = np.mat(WS) * np.mat(Corr) * np.mat(np.reshape(WS, (len(WS), 1)))
         K = math.sqrt(K.item(0))

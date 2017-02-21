@@ -4,9 +4,12 @@ import os
 import logging
 import math
 import shutil
+import xlrd
 import delta_margin
 import vega_margin
 import curvature_margin
+import margin_lib as mlib
+from scipy.stats import norm
 
 ##############################
 # Setup Logging Configuration
@@ -41,6 +44,19 @@ def prep_output_directory(params):
             output_path = '{0}\{1}\{2}'.format(os.getcwd(), prod, risk)
             if not os.path.exists(output_path):
                 os.mkdir(output_path)
+
+def read_inputs(config_file):
+
+    configs = pd.ExcelFile(config_file)
+
+    inputs = {}
+
+    ir_params = {}
+    ir_params['weights'] = configs.parse('IR_weights', converters={'curr': str})
+
+    inputs['IR'] = ir_params
+
+    return inputs
 
 def risk_classification(trades_pos, params):
     """Risk class classification in terms of RiskType"""
@@ -368,6 +384,79 @@ def calculate_simm(pos, params):
     simm = product_margin_all.Margin.sum()
 
     return simm
+
+def margin_risk_factor(self, pos, params, margin_loader):
+    """Calculate Delta Margin for IR Class"""
+
+    if margin_loader.__margin == 'Curvature':
+        pos = self.input_scaling(pos)
+
+    pos_delta = margin_loader.net_sensitivities(pos, params)
+
+    product_class = pos_delta.ProductClass.unique()[0]
+    risk_class = pos_delta.RiskClass.unique()[0]
+    risk_type = pos_delta.RiskType.unique()[0]
+
+    if risk_class == 'IR':
+        group = 'Qualifier'
+    elif risk_class == 'FX':
+        group = 'RiskType'
+    else:
+        group = 'Bucket'
+
+    pos_delta_gp_all = []
+    for gp in pos_delta[group].sort_values().unique():
+        pos_delta_gp = pos_delta[pos_delta[group] == gp].copy()
+        pos_delta_gp = margin_loader.margin_risk_group(pos_delta_gp, params)
+        pos_delta_gp_all.append(pos_delta_gp)
+
+    pos_delta_gp_all = pd.concat(pos_delta_gp_all)
+
+    pos_delta = pos_delta_gp_all.copy()
+
+    intermediate_path = '{0}\{1}\{2}'.format(os.getcwd(), product_class, risk_class)
+    pos_delta.to_csv('{0}\{1}_margin_group.csv'.format(intermediate_path, risk_type), index=False)
+
+    g = mlib.build_bucket_correlation(pos_delta, params, margin_loader.__margin)
+
+    pos_delta_non_residual = pos_delta[pos_delta.Group != 'Residual'].copy()
+    pos_delta_residual = pos_delta[pos_delta.Group == 'Residual'].copy()
+
+    delta_margin = 0
+    if len(pos_delta_non_residual) > 0:
+        S = mlib.build_non_residual_S(pos_delta_non_residual, params)
+
+        if risk_class != 'FX':
+            SS = np.mat(S) * np.mat(g) * np.mat(np.reshape(S, (len(S), 1)))
+            SS = SS.item(0)
+        else:
+            SS = 0
+
+        delta_margin = math.sqrt(np.dot(pos_delta_non_residual.K, pos_delta_non_residual.K) + SS)
+
+        if margin_loader.__margin == 'Curvature':
+            theta = min(pos_delta_non_residual.CVR_sum.sum() / pos_delta_non_residual.CVR_abs_sum.sum(), 0)
+            lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
+
+            delta_margin = max(lambda_const * delta_margin + pos_delta_non_residual.CVR_sum.sum(), 0)
+
+    if len(pos_delta_residual) > 0:
+        if margin_loader.__margin == 'Curvature':
+            theta = min(pos_delta_residual.CVR_sum / pos_delta_residual.CVR_abs_sum, 0)
+            lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
+
+            delta_margin = delta_margin + max(pos_delta_residual.CVR_sum + lambda_const * pos_delta_residual.K, 0)
+        else:
+            delta_margin = delta_margin + pos_delta_residual.K
+
+    if margin_loader.__margin == 'Curvature' and risk_class == 'IR':
+        delta_margin = delta_margin * params.IR_Curvature_Margin_Scale
+
+    ret_mm = pos_delta[['ProductClass', 'RiskClass']].copy()
+    ret_mm.drop_duplicates(inplace=True)
+    ret_mm['Margin'] = delta_margin
+
+    return ret_mm
 
 
 

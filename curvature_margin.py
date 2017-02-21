@@ -4,7 +4,7 @@ import os
 import logging
 import math
 import re
-from margin_lib import Margin
+import margin_lib as mlib
 from vega_margin import VegaMargin
 
 ##############################
@@ -25,10 +25,10 @@ if not len(logger.handlers):
     logger.addHandler(file_handler)
 ###############################
 
-class CurvatureMargin(Margin):
+class CurvatureMargin(object):
 
     def __init__(self):
-        Margin.__init__(self, 'Curvature')
+        self.__margin == 'Curvature'
         self.__vega_loader = VegaMargin()
 
     def calc_scaling(self, gp):
@@ -65,6 +65,9 @@ class CurvatureMargin(Margin):
     def build_risk_factors(self, pos_gp, params):
         return self.__vega_loader.build_risk_factors(pos_gp, params)
 
+    def calculate_CR_Threshold(self, gp, params):
+        return self.__vega_loader.calculate_CR_Threshold(gp, params)
+
     def margin_risk_group(self, gp, params):
 
         risk_class = gp.RiskClass.unique()[0]
@@ -75,10 +78,11 @@ class CurvatureMargin(Margin):
             logger.info('Calculate {0} Curvature Margin for {1}'.format(risk_class, gp.Bucket.unique()))
 
         s = self.build_risk_factors(gp, params)
+        CR = self.__vega_loader.build_concentration_risk(gp, params)
 
         WS = s
 
-        Corr = self.build_in_bucket_correlation(gp, params)
+        Corr = mlib.build_in_bucket_correlation(gp, params, self.__margin, CR)
 
         K = np.mat(WS) * np.mat(Corr) * np.mat(np.reshape(WS, (len(WS), 1)))
         K = math.sqrt(K.item(0))
