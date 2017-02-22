@@ -43,12 +43,15 @@ def main():
 
     # Calculate SIMM and dump output
     simm_all = []
+    indx = 0
     if len(run_cases) > 0:
         for case in run_cases.CombinationID.unique():
             logger.info('Run test {0}'.format(case))
             run_case = run_cases[run_cases.CombinationID == case].copy()
-            simm = simm_lib.calculate_simm(run_case, params)
+            simm = simm_lib.calculate_simm(run_case, params, indx)
             simm_all.append(simm)
+
+            indx = indx+1
 
         simm_all = pd.concat(simm_all)
         simm_all.to_csv('simm_output.csv', index=False)

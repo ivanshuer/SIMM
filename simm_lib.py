@@ -45,6 +45,10 @@ def prep_output_directory(params):
             if not os.path.exists(output_path):
                 os.mkdir(output_path)
 
+    output_path = '{0}\simm_all_margin.csv'.format(os.getcwd())
+    if os.path.exists(output_path):
+        os.remove(output_path)
+
 def read_inputs(config_file):
 
     configs = pd.ExcelFile(config_file)
@@ -423,7 +427,7 @@ def calculate_in_product_margin(pos_gp, params):
     return pos_product_margin
 
 
-def calculate_simm(pos, params):
+def calculate_simm(pos, params, indx):
 
     product_margin = []
 
@@ -446,7 +450,12 @@ def calculate_simm(pos, params):
 
     product_margin = pd.concat(product_margin)
 
-    product_margin.to_csv('simm_all_margin.csv', index=False)
+    if indx == 0:
+        header = True
+    else:
+        header = False
+
+    product_margin.to_csv('simm_all_margin.csv', index=False, mode='a', header=header)
 
     product_margin_gp = product_margin.groupby(['CombinationID', 'ProductClass', 'RiskClass'])
     product_margin_gp = product_margin_gp.agg({'Margin': np.sum})
