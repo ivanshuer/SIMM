@@ -1,5 +1,7 @@
 import pandas as pd
 
+configs = pd.ExcelFile('simm_config.xlsx')
+
 config_folder = 'config'
 
 Product = ['RatesFX', 'Credit', 'Equity', 'Commodity']
@@ -27,6 +29,7 @@ IR_USD_Sub_Curve = IR_Sub_Curve + ['Prime']
 IR_Reg_Vol_Well_Traded_Curr = ['USD', 'EUR', 'GBP']
 IR_Reg_Vol_Less_Well_Traded_Curr = ['CHF', 'AUD', 'NZD', 'CAD', 'SEK', 'NOK', 'DKK', 'HKD', 'KRW', 'SGD', 'TWD']
 IR_Low_Vol_Curr = ['JPY']
+IR_CR_Thrd = configs.parse('IR_CR_THR')
 IR_CR_Delta_High_Vol = 7.4e6
 IR_CR_Delta_Reg_Vol_Well_Traded = 250e6
 IR_CR_Delta_Reg_Vol_Less_Well_Traded = 25e6
@@ -35,11 +38,13 @@ IR_CR_Vega_High_Vol = 120e6
 IR_CR_Vega_Reg_Vol_Well_Traded = 3070e6
 IR_CR_Vega_Reg_Vol_Less_Well_Traded = 160e6
 IR_CR_Vega_Low_Vol = 960e6
-IR_Weights = pd.read_csv('{0}/ir_weights_params.csv'.format(config_folder), dtype={'curr': str})
-IR_Corr = pd.read_csv('{0}/ir_correlation_params.csv'.format(config_folder))
+#IR_Weights = pd.read_csv('{0}/ir_weights_params.csv'.format(config_folder), dtype={'curr': str})
+IR_Weights = configs.parse('IR_weights', converters={'curr': str})
+#IR_Corr = pd.read_csv('{0}/ir_correlation_params.csv'.format(config_folder))
+IR_Corr = configs.parse('IR_correlation')
 IR_Fai = 0.982
 IR_Gamma = 0.27
-IR_Inflation_Weights = 0.32
+IR_Inflation_Weights = 32
 IR_Inflation_Rho = 0.33
 IR_VRW = 0.21
 IR_Curvature_Margin_Scale = 2.3
@@ -104,6 +109,7 @@ FX_Rho = 0.5
 FX_VRW = 0.21
 FX_Significantly_Material = ['USD', 'EUR', 'JPY', 'GBP', 'AUD', 'CHF', 'CAD']
 FX_Frequently_Traded = ['BRL', 'CNY', 'HKD', 'INR', 'KRW', 'MXN', 'NOK', 'NZD', 'RUB', 'SEK', 'SGD', 'TRY', 'ZAR']
+FX_CR_THR = configs.parse('FX_CR_THR')
 FX_CR_Delta_C1 = 5200e6
 FX_CR_Delta_C2 = 1300e6
 FX_CR_Delta_C3 = 260e6

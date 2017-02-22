@@ -29,6 +29,9 @@ class VegaMargin(object):
     def __init__(self):
         self.__margin = 'Vega'
 
+    def margin_type(self):
+        return self.__margin
+
     def change_FX_ticker_order(self, gp):
         curr1 = gp['Qualifier'][0:3]
         curr2 = gp['Qualifier'][3:6]
@@ -44,12 +47,12 @@ class VegaMargin(object):
         risk_class = pos.RiskClass.unique()[0]
 
         if risk_class == 'IR':
-            factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Label1', 'RiskClass']
+            factor_group = ['CombinationID','ProductClass', 'RiskType', 'Qualifier', 'Label1', 'RiskClass']
         elif risk_class == 'FX':
             pos = pos.apply(self.change_FX_ticker_order, axis=1)
-            factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Label1', 'RiskClass']
+            factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'Label1', 'RiskClass']
         elif risk_class in ['CreditQ', 'CreditNonQ', 'Equity', 'Commodity']:
-            factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'RiskClass']
+            factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'RiskClass']
 
         pos_gp = pos.groupby(factor_group)
         pos_vega = pos_gp.agg({'AmountUSD': np.sum})
@@ -121,33 +124,45 @@ class VegaMargin(object):
 
         return VRW
 
-    def calculate_CR_Threshold(self, gp, params):
-
+    def calculate_risk_group(self, gp, params):
         if gp['RiskClass'] == 'IR':
             if gp['Qualifier'] in params.IR_Low_Vol_Curr:
-                Thrd = params.IR_CR_Vega_Low_Vol
+                risk_group = 'Low volatility'
             elif gp['Qualifier'] in params.IR_Reg_Vol_Less_Well_Traded_Curr:
-                Thrd = params.IR_CR_Vega_Reg_Vol_Less_Well_Traded
+                risk_group = 'Regular volatility, less well-traded'
             elif gp['Qualifier'] in params.IR_Reg_Vol_Well_Traded_Curr:
-                Thrd = params.IR_CR_Vega_Reg_Vol_Well_Traded
+                risk_group = 'Regular volatility, well-traded'
             else:
-                Thrd = params.IR_CR_Vega_High_Vol
-
+                risk_group = 'High volatility'
         elif gp['RiskClass'] == 'FX':
             curr1 = gp['Qualifier'][0:3]
             curr2 = gp['Qualifier'][3:6]
 
             if curr1 in params.FX_Significantly_Material and curr2 in params.FX_Significantly_Material:
-                Thrd = params.FX_CR_Vega_C1_C1
+                risk_group = 'C1_C1'
             elif (curr1 in params.FX_Significantly_Material and curr2 in params.FX_Frequently_Traded) or \
                     (curr1 in params.FX_Frequently_Traded and curr2 in params.FX_Significantly_Material):
-                Thrd = params.FX_CR_Vega_C1_C2
+                risk_group = 'C1_C2'
             elif curr1 in params.FX_Significantly_Material or curr2 in params.FX_Significantly_Material:
-                Thrd = params.FX_CR_Vega_C1_C3
+                risk_group = 'C1_C3'
             else:
-                Thrd = params.FX_CR_Vega_Others
+                risk_group = 'Others'
 
-        gp['Thrd'] = Thrd
+        gp['Risk_Group'] = risk_group
+
+        return gp
+
+    def calculate_CR_Threshold(self, gp, params):
+
+        risk_group = gp['RiskClass'].unique()[0]
+
+        if risk_group == 'IR':
+            thrd = params.IR_CR_Thrd[params.IR_CR_Thrd.Type == 'Vega'].copy()
+
+        elif risk_group == 'FX':
+            thrd = params.FX_CR_THR[params.FX_CR_THR.Type == 'Vega'].copy()
+
+        gp = pd.merge(gp, thrd[['Risk_Group', 'CR_THR']], how='left')
 
         return gp
 
@@ -160,18 +175,21 @@ class VegaMargin(object):
         else:
             logger.info('Calculate {0} Vega Margin for {1}'.format(risk_class, gp.Bucket.unique()))
 
+        gp = gp.apply(self.calculate_risk_group, axis=1, params=params)
+        gp = self.calculate_CR_Threshold(gp, params)
+
         s = self.build_risk_factors(gp, params)
         RW = self.build_risk_weights(gp, params)
-        CR = self.build_concentration_risk(gp, params)
+        CR = mlib.build_concentration_risk(gp, params, self.margin_type())
 
         WS = RW * s * CR
 
-        Corr = mlib.build_in_bucket_correlation(gp, params, self.__margin, CR)
+        Corr = mlib.build_in_bucket_correlation(gp, params, self.margin_type(), CR)
 
         K = np.mat(WS) * np.mat(Corr) * np.mat(np.reshape(WS, (len(WS), 1)))
         K = math.sqrt(K.item(0))
 
-        ret = gp[['ProductClass', 'RiskType', 'RiskClass']].copy()
+        ret = gp[['CombinationID', 'ProductClass', 'RiskType', 'RiskClass']].copy()
         ret.drop_duplicates(inplace=True)
         ret['K'] = K
         ret['S'] = max(min(WS.sum(), K), -K)

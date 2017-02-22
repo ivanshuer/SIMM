@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import logging
 import math
-from scipy.stats import norm
 
 ##############################
 # Setup Logging Configuration
@@ -97,12 +96,11 @@ def build_concentration_risk(pos_gp, params, margin):
         #CR = 100
         #if self.__margin == 'Vega' or self.__margin == 'Curvature':
         #    CR = 1
-        pos_gp_CR = pos_gp.groupby(['ProductClass', 'RiskType', 'Qualifier', 'RiskClass']).agg({'AmountUSD': np.sum})
+        pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
         pos_gp_CR.reset_index(inplace=True)
-        pos_gp_CR = pos_gp_CR.apply(calculate_CR, axis=1, params=params)
 
-        pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / Tb)))
-        pos_gp_CR = pos_gp_CR['CR'].values
+        pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / d['CR_THR'])), axis=1)
+        CR = pos_gp_CR['CR'].values
 
     elif risk_class in ['CreditQ', 'CreditNonQ']:
         if risk_class == 'CreditQ':
@@ -145,11 +143,13 @@ def build_concentration_risk(pos_gp, params, margin):
 
             CR = pos_gp.AmountUSD.apply(f)
         elif risk_class == 'FX':
-            pos_gp_CR = pos_gp.groupby(['ProductClass', 'RiskType', 'Qualifier', 'RiskClass']).agg({'AmountUSD': np.sum})
+            pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
             pos_gp_CR.reset_index(inplace=True)
-            CR = pos_gp_CR.apply(calculate_CR, axis=1, params=params)
-            CR = pd.merge(pos_gp_CR, CR, how='left')
-            CR = CR['CR'].copy()
+            pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / d['CR_THR'])), axis=1)
+
+            pos_gp_CR = pd.merge(pos_gp, pos_gp_CR[['Qualifier', 'Risk_Group', 'CR']], how='left')
+
+            CR = pos_gp_CR['CR']
 
             if margin == 'Vega' or margin == 'Curvature':
                 tenors = params.FX_Tenor

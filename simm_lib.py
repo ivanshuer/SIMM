@@ -271,10 +271,10 @@ def calc_delta_margin(pos, params):
 
     if len(pos_delta) > 0:
         delta_margin_loader = delta_margin.DeltaMargin()
-        pos_delta_margin = delta_margin_loader.margin_risk_factor(pos_delta, params)
+        pos_delta_margin = margin_risk_factor(pos_delta, params, delta_margin_loader)
 
     if len(pos_delta_margin) > 0:
-        pos_delta_margin_gp = pos_delta_margin.groupby(['ProductClass', 'RiskClass'])
+        pos_delta_margin_gp = pos_delta_margin.groupby(['CombinationID', 'ProductClass', 'RiskClass'])
         pos_delta_margin_gp = pos_delta_margin_gp.agg({'Margin': np.sum})
         pos_delta_margin_gp.reset_index(inplace=True)
         pos_delta_margin_gp['MarginType'] = 'Delta'
@@ -289,10 +289,10 @@ def calc_vega_margin(pos, params):
 
     if len(pos_vega) > 0:
         vega_margin_loader = vega_margin.VegaMargin()
-        pos_vega_margin = vega_margin_loader.margin_risk_factor(pos_vega, params)
+        pos_vega_margin = margin_risk_factor(pos_vega, params, vega_margin_loader)
 
     if len(pos_vega_margin) > 0:
-        pos_vega_margin_gp = pos_vega_margin.groupby(['ProductClass', 'RiskClass'])
+        pos_vega_margin_gp = pos_vega_margin.groupby(['CombinationID', 'ProductClass', 'RiskClass'])
         pos_vega_margin_gp = pos_vega_margin_gp.agg({'Margin': np.sum})
         pos_vega_margin_gp.reset_index(inplace=True)
         pos_vega_margin_gp['MarginType'] = 'Vega'
@@ -307,15 +307,88 @@ def calc_curvature_margin(pos, params):
 
     if len(pos_curvature) > 0:
         curvature_margin_loader = curvature_margin.CurvatureMargin()
-        pos_curvature_margin = curvature_margin_loader.margin_risk_factor(pos_curvature, params)
+        pos_curvature_margin = margin_risk_factor(pos_curvature, params, curvature_margin_loader)
 
     if len(pos_curvature_margin) > 0:
-        pos_curvature_margin_gp = pos_curvature_margin.groupby(['ProductClass', 'RiskClass'])
+        pos_curvature_margin_gp = pos_curvature_margin.groupby(['CombinationID', 'ProductClass', 'RiskClass'])
         pos_curvature_margin_gp = pos_curvature_margin_gp.agg({'Margin': np.sum})
         pos_curvature_margin_gp.reset_index(inplace=True)
         pos_curvature_margin_gp['MarginType'] = 'Curvature'
 
     return pos_curvature_margin_gp
+
+def margin_risk_factor(pos, params, margin_loader):
+    """Calculate Delta Margin for IR Class"""
+
+    if margin_loader.margin_type() == 'Curvature':
+        pos = margin_loader.input_scaling(pos)
+
+    pos_delta = margin_loader.net_sensitivities(pos, params)
+
+    product_class = pos_delta.ProductClass.unique()[0]
+    risk_class = pos_delta.RiskClass.unique()[0]
+    risk_type = pos_delta.RiskType.unique()[0]
+
+    if risk_class == 'IR':
+        group = 'Qualifier'
+    elif risk_class == 'FX':
+        group = 'RiskType'
+    else:
+        group = 'Bucket'
+
+    pos_delta_gp_all = []
+    for gp in pos_delta[group].sort_values().unique():
+        pos_delta_gp = pos_delta[pos_delta[group] == gp].copy()
+        pos_delta_gp = margin_loader.margin_risk_group(pos_delta_gp, params)
+        pos_delta_gp_all.append(pos_delta_gp)
+
+    pos_delta_gp_all = pd.concat(pos_delta_gp_all)
+
+    pos_delta = pos_delta_gp_all.copy()
+
+    intermediate_path = '{0}\{1}\{2}'.format(os.getcwd(), product_class, risk_class)
+    pos_delta.to_csv('{0}\{1}_margin_group.csv'.format(intermediate_path, risk_type), index=False)
+
+    g = mlib.build_bucket_correlation(pos_delta, params, margin_loader.margin_type())
+
+    pos_delta_non_residual = pos_delta[pos_delta.Group != 'Residual'].copy()
+    pos_delta_residual = pos_delta[pos_delta.Group == 'Residual'].copy()
+
+    delta_margin = 0
+    if len(pos_delta_non_residual) > 0:
+        S = mlib.build_non_residual_S(pos_delta_non_residual, params)
+
+        if risk_class != 'FX':
+            SS = np.mat(S) * np.mat(g) * np.mat(np.reshape(S, (len(S), 1)))
+            SS = SS.item(0)
+        else:
+            SS = 0
+
+        delta_margin = math.sqrt(np.dot(pos_delta_non_residual.K, pos_delta_non_residual.K) + SS)
+
+        if margin_loader.margin_type() == 'Curvature':
+            theta = min(pos_delta_non_residual.CVR_sum.sum() / pos_delta_non_residual.CVR_abs_sum.sum(), 0)
+            lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
+
+            delta_margin = max(lambda_const * delta_margin + pos_delta_non_residual.CVR_sum.sum(), 0)
+
+    if len(pos_delta_residual) > 0:
+        if margin_loader.margin_type() == 'Curvature':
+            theta = min(pos_delta_residual.CVR_sum / pos_delta_residual.CVR_abs_sum, 0)
+            lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
+
+            delta_margin = delta_margin + max(pos_delta_residual.CVR_sum + lambda_const * pos_delta_residual.K, 0)
+        else:
+            delta_margin = delta_margin + pos_delta_residual.K
+
+    if margin_loader.margin_type() == 'Curvature' and risk_class == 'IR':
+        delta_margin = delta_margin * params.IR_Curvature_Margin_Scale
+
+    ret_mm = pos_delta[['CombinationID','ProductClass', 'RiskClass']].copy()
+    ret_mm.drop_duplicates(inplace=True)
+    ret_mm['Margin'] = delta_margin
+
+    return ret_mm
 
 def calculate_in_product_margin(pos_gp, params):
 
@@ -338,7 +411,7 @@ def calculate_in_product_margin(pos_gp, params):
         product_margin = np.mat(risk_margin) * np.mat(risk_class_corr) * np.mat(np.reshape(risk_margin, (len(risk_margin), 1)))
         product_margin = math.sqrt(product_margin.item(0))
 
-        pos_product = pos_product[['ProductClass']].copy()
+        pos_product = pos_product[['CombinationID', 'ProductClass']].copy()
         pos_product.drop_duplicates(inplace=True)
         pos_product['Margin'] = product_margin
 
@@ -375,88 +448,90 @@ def calculate_simm(pos, params):
 
     product_margin.to_csv('simm_all_margin.csv', index=False)
 
-    product_margin_gp = product_margin.groupby(['ProductClass', 'RiskClass'])
+    product_margin_gp = product_margin.groupby(['CombinationID', 'ProductClass', 'RiskClass'])
     product_margin_gp = product_margin_gp.agg({'Margin': np.sum})
     product_margin_gp.reset_index(inplace=True)
 
     product_margin_all = calculate_in_product_margin(product_margin_gp, params)
 
-    simm = product_margin_all.Margin.sum()
+    simm = product_margin_all[['CombinationID']].drop_duplicates()
+    simm['SIMM_Benchmark'] = product_margin_all.Margin.sum()
 
     return simm
 
-def margin_risk_factor(self, pos, params, margin_loader):
-    """Calculate Delta Margin for IR Class"""
+def generate_trade_pos(input_file, params):
 
-    if margin_loader.__margin == 'Curvature':
-        pos = self.input_scaling(pos)
+    excl_file = pd.ExcelFile(input_file)
 
-    pos_delta = margin_loader.net_sensitivities(pos, params)
+    trades_pos = excl_file.parse('simm_input', converters={'Bucket': str, 'Label1': str, 'Label2': str, 'Amount': np.float64, 'AmountUSD': np.float64})
+    trades_pos.dropna(how='all', inplace=True)
 
-    product_class = pos_delta.ProductClass.unique()[0]
-    risk_class = pos_delta.RiskClass.unique()[0]
-    risk_type = pos_delta.RiskType.unique()[0]
+    # Calculate risk classification
+    trades_pos = risk_classification(trades_pos, params)
+    trades_pos_no_classification = trades_pos[trades_pos.reason != 'Good'].copy()
+    trades_pos = trades_pos[trades_pos.reason == 'Good'].copy()
 
-    if risk_class == 'IR':
-        group = 'Qualifier'
-    elif risk_class == 'FX':
-        group = 'RiskType'
+    # Check input data quality
+    trades_pos_all = prep_data(trades_pos, params)
+    trades_pos_all = pd.concat([trades_pos_all, trades_pos_no_classification])
+    trades_pos_all.to_csv('all_trades_pos.csv', index=False)
+
+    # Prepare input data
+    trades_simm = trades_pos_all[trades_pos_all.reason == 'Good'].copy()
+    trades_simm = trades_simm[['SensitivityID', 'ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'Label2', 'AmountUSD', 'RiskClass']].copy()
+    trades_simm.AmountUSD.fillna(0, inplace=True)
+
+    return trades_simm
+
+def find_sentivitiy_id(gp, trades_pos):
+
+    case_ids = gp['SensitivityID']
+    case_ids = [id.strip() for id in case_ids.split(',')]
+
+    case_name = gp['CombinationID']
+    CombinationID = np.repeat(case_name, len(case_ids))
+    case_df = pd.DataFrame({'CombinationID': CombinationID, 'SensitivityID': case_ids})
+
+    return case_df
+
+def generate_run_cases(input_file, trades_pos):
+
+    excl_file = pd.ExcelFile(input_file)
+
+    run_cases = excl_file.parse('run_cases', converters={'Include': str})
+
+    run_case_include = run_cases[run_cases.Include == 'x'].copy()
+    if len(run_case_include) > 0:
+        run_case_all = run_case_include.copy()
     else:
-        group = 'Bucket'
+        run_case_all = run_cases.copy()
 
-    pos_delta_gp_all = []
-    for gp in pos_delta[group].sort_values().unique():
-        pos_delta_gp = pos_delta[pos_delta[group] == gp].copy()
-        pos_delta_gp = margin_loader.margin_risk_group(pos_delta_gp, params)
-        pos_delta_gp_all.append(pos_delta_gp)
+    run_case_all = run_case_all[run_case_all.SensitivityID.notnull()].copy()
 
-    pos_delta_gp_all = pd.concat(pos_delta_gp_all)
+    valid_sensitivities = []
 
-    pos_delta = pos_delta_gp_all.copy()
+    if len(run_case_all) > 0:
+        run_cases_expand = []
+        for index, row in run_case_all.iterrows():
+            run_case = find_sentivitiy_id(row, trades_pos)
+            run_cases_expand.append(run_case)
 
-    intermediate_path = '{0}\{1}\{2}'.format(os.getcwd(), product_class, risk_class)
-    pos_delta.to_csv('{0}\{1}_margin_group.csv'.format(intermediate_path, risk_type), index=False)
+        run_cases_expand = pd.concat(run_cases_expand)
 
-    g = mlib.build_bucket_correlation(pos_delta, params, margin_loader.__margin)
+        run_cases_expand = pd.merge(run_cases_expand, trades_pos, how='left')
 
-    pos_delta_non_residual = pos_delta[pos_delta.Group != 'Residual'].copy()
-    pos_delta_residual = pos_delta[pos_delta.Group == 'Residual'].copy()
+        invalid_sensitivities = run_cases_expand[run_cases_expand.ProductClass.isnull()].copy()
+        valid_sensitivities = run_cases_expand[run_cases_expand.ProductClass.notnull()].copy()
 
-    delta_margin = 0
-    if len(pos_delta_non_residual) > 0:
-        S = mlib.build_non_residual_S(pos_delta_non_residual, params)
+        if len(invalid_sensitivities) > 0:
+            for index, row in invalid_sensitivities.iterrows():
+                logger.info('{0} has no sensitivity {1}.'.format(row['CombinationID'], row['SensitivityID']))
 
-        if risk_class != 'FX':
-            SS = np.mat(S) * np.mat(g) * np.mat(np.reshape(S, (len(S), 1)))
-            SS = SS.item(0)
-        else:
-            SS = 0
+    return valid_sensitivities
 
-        delta_margin = math.sqrt(np.dot(pos_delta_non_residual.K, pos_delta_non_residual.K) + SS)
 
-        if margin_loader.__margin == 'Curvature':
-            theta = min(pos_delta_non_residual.CVR_sum.sum() / pos_delta_non_residual.CVR_abs_sum.sum(), 0)
-            lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
 
-            delta_margin = max(lambda_const * delta_margin + pos_delta_non_residual.CVR_sum.sum(), 0)
 
-    if len(pos_delta_residual) > 0:
-        if margin_loader.__margin == 'Curvature':
-            theta = min(pos_delta_residual.CVR_sum / pos_delta_residual.CVR_abs_sum, 0)
-            lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
-
-            delta_margin = delta_margin + max(pos_delta_residual.CVR_sum + lambda_const * pos_delta_residual.K, 0)
-        else:
-            delta_margin = delta_margin + pos_delta_residual.K
-
-    if margin_loader.__margin == 'Curvature' and risk_class == 'IR':
-        delta_margin = delta_margin * params.IR_Curvature_Margin_Scale
-
-    ret_mm = pos_delta[['ProductClass', 'RiskClass']].copy()
-    ret_mm.drop_duplicates(inplace=True)
-    ret_mm['Margin'] = delta_margin
-
-    return ret_mm
 
 
 

@@ -28,8 +28,11 @@ if not len(logger.handlers):
 class CurvatureMargin(object):
 
     def __init__(self):
-        self.__margin == 'Curvature'
+        self.__margin = 'Curvature'
         self.__vega_loader = VegaMargin()
+
+    def margin_type(self):
+        return self.__margin
 
     def calc_scaling(self, gp):
         label = gp.Label1.unique()[0]
@@ -68,6 +71,12 @@ class CurvatureMargin(object):
     def calculate_CR_Threshold(self, gp, params):
         return self.__vega_loader.calculate_CR_Threshold(gp, params)
 
+    def calculate_risk_group(self, gp, params):
+        return self.__vega_loader.calculate_risk_group(gp, params)
+
+    def calculate_CR_Threshold(self, gp, params):
+        return self.__vega_loader.calculate_CR_Threshold(gp, params)
+
     def margin_risk_group(self, gp, params):
 
         risk_class = gp.RiskClass.unique()[0]
@@ -77,17 +86,20 @@ class CurvatureMargin(object):
         else:
             logger.info('Calculate {0} Curvature Margin for {1}'.format(risk_class, gp.Bucket.unique()))
 
+        gp = gp.apply(self.calculate_risk_group, axis=1, params=params)
+        gp = self.calculate_CR_Threshold(gp, params)
+
         s = self.build_risk_factors(gp, params)
-        CR = self.__vega_loader.build_concentration_risk(gp, params)
+        CR = mlib.build_concentration_risk(gp, params, self.margin_type())
 
         WS = s
 
-        Corr = mlib.build_in_bucket_correlation(gp, params, self.__margin, CR)
+        Corr = mlib.build_in_bucket_correlation(gp, params, self.margin_type(), CR)
 
         K = np.mat(WS) * np.mat(Corr) * np.mat(np.reshape(WS, (len(WS), 1)))
         K = math.sqrt(K.item(0))
 
-        ret = gp[['ProductClass', 'RiskType', 'RiskClass']].copy()
+        ret = gp[['CombinationID', 'ProductClass', 'RiskType', 'RiskClass']].copy()
         ret.drop_duplicates(inplace=True)
         ret['K'] = K
         ret['S'] = max(min(WS.sum(), K), -K)

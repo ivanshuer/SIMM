@@ -28,28 +28,30 @@ class DeltaMargin(object):
     def __init__(self):
         self.__margin = 'Delta'
 
+    def margin_type(self):
+        return self.__margin
+
     def net_sensitivities(self, pos, params):
         risk_class = pos.RiskClass.unique()[0]
 
         if risk_class == 'IR':
-            factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'Label2', 'RiskClass']
+            factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'Label2', 'RiskClass']
         elif risk_class in ['CreditQ', 'CreditNonQ']:
-            factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'RiskClass']
+            factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'RiskClass']
         elif risk_class in ['Equity', 'Commodity']:
-            factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'RiskClass']
+            factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'RiskClass']
         elif risk_class == 'FX':
-            factor_group = ['ProductClass', 'RiskType', 'Qualifier', 'RiskClass']
+            factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'RiskClass']
 
         pos_gp = pos.groupby(factor_group)
         pos_delta = pos_gp.agg({'AmountUSD': np.sum})
         pos_delta.reset_index(inplace=True)
 
+        # if there exists inflation, need to aggregate amount by each currency
         pos_inflation = pos[pos.RiskType == 'Risk_Inflation'].copy()
         if len(pos_inflation) > 0:
-            agg_amount = pos_inflation.AmountUSD.sum()
-            pos_inflation = pos_inflation[factor_group].copy()
-            pos_inflation.drop_duplicates(inplace=True)
-            pos_inflation['AmountUSD'] = agg_amount
+            pos_inflation = pos_inflation.groupby(['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'RiskClass']).agg({'AmountUSD': np.sum})
+            pos_inflation.reset_index(inplace=True)
 
             pos_delta = pd.concat([pos_delta, pos_inflation])
 
@@ -174,27 +176,39 @@ class DeltaMargin(object):
 
         return RW
 
-    def calculate_CR_Threshold(self, gp, params):
-
+    def calculate_risk_group(self, gp, params):
         if gp['RiskClass'] == 'IR':
             if gp['Qualifier'] in params.IR_Low_Vol_Curr:
-                Thrd = params.IR_CR_Delta_Low_Vol
+                risk_group = 'Low volatility'
             elif gp['Qualifier'] in params.IR_Reg_Vol_Less_Well_Traded_Curr:
-                Thrd = params.IR_CR_Delta_Reg_Vol_Less_Well_Traded
+                risk_group = 'Regular volatility, less well-traded'
             elif gp['Qualifier'] in params.IR_Reg_Vol_Well_Traded_Curr:
-                Thrd = params.IR_CR_Delta_Reg_Vol_Well_Traded
+                risk_group = 'Regular volatility, well-traded'
             else:
-                Thrd = params.IR_CR_Delta_High_Vol
-
+                risk_group = 'High volatility'
         elif gp['RiskClass'] == 'FX':
             if gp['Qualifier'] in params.FX_Significantly_Material:
-                Thrd = params.FX_CR_Delta_C1
+                risk_group = 'C1'
             elif gp['Qualifier'] in params.FX_Frequently_Traded:
-                Thrd = params.FX_CR_Delta_C2
+                risk_group ='C2'
             else:
-                Thrd = params.FX_CR_Delta_C3
+                risk_group = 'C3'
 
-        gp['Thrd'] = Thrd
+        gp['Risk_Group'] = risk_group
+
+        return gp
+
+    def calculate_CR_Threshold(self, gp, params):
+
+        risk_group = gp['RiskClass'].unique()[0]
+
+        if risk_group == 'IR':
+            thrd = params.IR_CR_Thrd[params.IR_CR_Thrd.Type == 'Delta'].copy()
+
+        elif risk_group == 'FX':
+            thrd = params.FX_CR_THR[params.FX_CR_THR.Type == 'Delta'].copy()
+
+        gp = pd.merge(gp, thrd[['Risk_Group', 'CR_THR']], how='left')
 
         return gp
 
@@ -207,9 +221,12 @@ class DeltaMargin(object):
         else:
             logger.info('Calculate {0} Delta Margin for {1}'.format(risk_class, gp.Bucket.unique()))
 
+        gp = gp.apply(self.calculate_risk_group, axis=1, params=params)
+        gp = self.calculate_CR_Threshold(gp, params)
+
         s = self.build_risk_factors(gp, params)
         RW = self.build_risk_weights(gp, params)
-        CR = self.build_concentration_risk(gp, params)
+        CR = mlib.build_concentration_risk(gp, params, self.margin_type())
 
         WS = RW * s * CR
 
@@ -223,7 +240,7 @@ class DeltaMargin(object):
         else:
             risk_type = gp.RiskType.unique()[0]
 
-        ret = gp[['ProductClass', 'RiskClass']].copy()
+        ret = gp[['CombinationID', 'ProductClass', 'RiskClass']].copy()
         ret.drop_duplicates(inplace=True)
         ret['RiskType'] = risk_type
         ret['K'] = K
