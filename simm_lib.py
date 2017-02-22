@@ -517,7 +517,6 @@ def generate_run_cases(input_file, trades_pos):
             run_cases_expand.append(run_case)
 
         run_cases_expand = pd.concat(run_cases_expand)
-
         run_cases_expand = pd.merge(run_cases_expand, trades_pos, how='left')
 
         invalid_sensitivities = run_cases_expand[run_cases_expand.ProductClass.isnull()].copy()

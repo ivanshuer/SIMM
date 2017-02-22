@@ -22,62 +22,10 @@ if not len(logger.handlers):
     logger.addHandler(file_handler)
 ###############################
 
-def calculate_CR(gp, params, margin):
-
-    if gp['RiskClass'] == 'IR':
-        if gp['Qualifier'] in params.IR_Low_Vol_Curr:
-            if margin == 'Delta':
-                Tb = params.IR_Delta_Low_Vol_Threshold
-            elif margin in ['Vega', 'Curvature']:
-                Tb = params.IR_Vega_Low_Vol_Threshold
-        elif gp['Qualifier'] in params.IR_Reg_Vol_Less_Well_Traded_Curr:
-            if margin == 'Delta':
-                Tb = params.IR_Delta_Reg_Vol_Less_Well_Traded_Threshold
-            elif margin in ['Vega', 'Curvature']:
-                Tb = params.IR_Vega_Reg_Vol_Less_Well_Traded_Threshold
-        elif gp['Qualifier'] in params.IR_Reg_Vol_Well_Traded_Curr:
-            if margin == 'Delta':
-                Tb = params.IR_Delta_Reg_Vol_Well_Traded_Threshold
-            elif margin in ['Vega', 'Curvature']:
-                Tb = params.IR_Vega_Reg_Vol_Well_Traded_Threshold
-        else:
-            if margin == 'Delta':
-                Tb = params.IR_Delta_High_Vol_Threshold
-            elif margin in ['Vega', 'Curvature']:
-                Tb = params.IR_Vega_High_Vol_Threshold
-    elif gp['RiskClass'] == 'FX':
-        if margin == 'Delta':
-            if gp['Qualifier'] in params.FX_Significantly_Material:
-                Tb = params.FX_Significantly_Material_FX_Threshold
-            elif gp['Qualifier'] in params.FX_Frequently_Traded:
-                Tb = params.FX_Frequently_Traded_Threshold
-            else:
-                Tb = params.FX_Others_Threshold
-        elif margin in ['Vega', 'Curvature']:
-            curr1 = gp['Qualifier'][0:3]
-            curr2 = gp['Qualifier'][3:6]
-
-            if curr1 in params.FX_Significantly_Material and curr2 in params.FX_Significantly_Material:
-                Tb = params.FX_Vega_C1_C1_Threshold
-            elif (curr1 in params.FX_Significantly_Material and curr2 in params.FX_Frequently_Traded) or \
-                    (curr1 in params.FX_Frequently_Traded and curr2 in params.FX_Significantly_Material):
-                Tb = params.FX_Vega_C1_C2_Threshold
-            elif curr1 in params.FX_Significantly_Material or curr2 in params.FX_Significantly_Material:
-                Tb = params.FX_Vega_C1_C3_Threshold
-            else:
-                Tb = params.FX_Vega_Others_Threshold
-
-    gp['CR'] = max(1, math.sqrt(abs(gp['AmountUSD']) / Tb))
-
-    return gp[['Qualifier', 'CR']]
-
 def build_concentration_risk(pos_gp, params, margin):
     risk_class = pos_gp.RiskClass.unique()[0]
     if risk_class not in ['IR', 'FX']:
         bucket = pos_gp.Bucket.unique()[0]
-
-    #is_vega_factor = pos_gp.RiskType.unique()[0] in params.Vega_Factor
-    #is_curvature_factor = pos_gp.RiskType.unique()[0] in params.Curvature_Factor
 
     #f = lambda x: max(1, math.sqrt(abs(x) / Tb))
     f = lambda x: 100
@@ -85,17 +33,6 @@ def build_concentration_risk(pos_gp, params, margin):
         f = lambda x: 1
 
     if risk_class == 'IR':
-        #Tb = params.IR_G10_DKK_Threshold
-
-        #gp_curr = pos_gp.Qualifier.unique()[0]
-
-        #if not gp_curr in params.G10_Curr:
-        #    Tb = params.IR_Other_Threshold
-
-        #CR = max(1, math.sqrt(abs(pos_gp.AmountUSD.sum() / Tb)))
-        #CR = 100
-        #if self.__margin == 'Vega' or self.__margin == 'Curvature':
-        #    CR = 1
         pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
         pos_gp_CR.reset_index(inplace=True)
 
