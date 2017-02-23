@@ -5,7 +5,6 @@ import logging
 import math
 import shutil
 import re
-import xlrd
 import delta_margin
 import vega_margin
 import curvature_margin
