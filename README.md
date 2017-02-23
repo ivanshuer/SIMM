@@ -8,6 +8,6 @@ Check package path:
 
 import pandas as pd
 
-pd.__file__
+"pd.__file__"
 
 ...\\lib\\site-packages\\... is the package location
