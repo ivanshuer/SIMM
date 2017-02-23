@@ -4,6 +4,7 @@ import os
 import logging
 import math
 import shutil
+import re
 import xlrd
 import delta_margin
 import vega_margin
@@ -351,7 +352,17 @@ def margin_risk_factor(pos, params, margin_loader):
     pos_delta = pos_delta_gp_all.copy()
 
     intermediate_path = '{0}\{1}\{2}'.format(os.getcwd(), product_class, risk_class)
-    pos_delta.to_csv('{0}\{1}_margin_group.csv'.format(intermediate_path, risk_type), index=False)
+    file_name = '{0}\{1}_margin_group.csv'.format(intermediate_path, risk_type)
+
+    if margin_loader.margin_type() == 'Curvature':
+        pos_delta_output = pos_delta.ix[:, pos_delta.columns != 'CVR_sum']
+    else:
+        pos_delta_output = pos_delta
+
+    if not os.path.isfile(file_name):
+        pos_delta_output.to_csv(file_name, index=False)
+    else:  # else it exists so append without writing the header
+        pos_delta_output.to_csv(file_name, mode='a', header=False, index=False)
 
     g = mlib.build_bucket_correlation(pos_delta, params, margin_loader.margin_type())
 
@@ -427,7 +438,7 @@ def calculate_in_product_margin(pos_gp, params):
     return pos_product_margin
 
 
-def calculate_simm(pos, params, indx):
+def calculate_simm(pos, params):
 
     product_margin = []
 
@@ -450,12 +461,10 @@ def calculate_simm(pos, params, indx):
 
     product_margin = pd.concat(product_margin)
 
-    if indx == 0:
-        header = True
-    else:
-        header = False
-
-    product_margin.to_csv('simm_all_margin.csv', index=False, mode='a', header=header)
+    if not os.path.isfile('simm_all_margin.csv'):
+        product_margin.to_csv('simm_all_margin.csv', index=False)
+    else:  # else it exists so append without writing the header
+        product_margin.to_csv('simm_all_margin.csv', mode='a', header=False, index=False)
 
     product_margin_gp = product_margin.groupby(['CombinationID', 'ProductClass', 'RiskClass'])
     product_margin_gp = product_margin_gp.agg({'Margin': np.sum})
@@ -492,10 +501,26 @@ def generate_trade_pos(input_file, params):
 
     return trades_simm
 
-def find_sentivitiy_id(gp, trades_pos):
+def find_sentivitiy_id(gp, trades_simm):
 
     case_ids = gp['SensitivityID']
-    case_ids = [id.strip() for id in case_ids.split(',')]
+
+    if not re.search('All', case_ids) == None:
+        case_ids = case_ids[re.search('All', case_ids).end():]
+        case_ids = [id.strip() for id in case_ids.split(',')]
+
+        if case_ids[0] == '':
+            case_ids = trades_simm.SensitivityID.values
+        else:
+            case_all = []
+            for case in case_ids:
+                case_id = trades_simm[trades_simm.SensitivityID.str.match(case + '_')]
+                case_all.append(case_id)
+
+            case_all = pd.concat(case_all)
+            case_ids = case_all.SensitivityID.values
+    else:
+        case_ids = [id.strip() for id in case_ids.split(',')]
 
     case_name = gp['CombinationID']
     CombinationID = np.repeat(case_name, len(case_ids))
@@ -503,7 +528,7 @@ def find_sentivitiy_id(gp, trades_pos):
 
     return case_df
 
-def generate_run_cases(input_file, trades_pos):
+def generate_run_cases(input_file, trades_simm):
 
     excl_file = pd.ExcelFile(input_file)
 
@@ -522,11 +547,11 @@ def generate_run_cases(input_file, trades_pos):
     if len(run_case_all) > 0:
         run_cases_expand = []
         for index, row in run_case_all.iterrows():
-            run_case = find_sentivitiy_id(row, trades_pos)
+            run_case = find_sentivitiy_id(row, trades_simm)
             run_cases_expand.append(run_case)
 
         run_cases_expand = pd.concat(run_cases_expand)
-        run_cases_expand = pd.merge(run_cases_expand, trades_pos, how='left')
+        run_cases_expand = pd.merge(run_cases_expand, trades_simm, how='left')
 
         invalid_sensitivities = run_cases_expand[run_cases_expand.ProductClass.isnull()].copy()
         valid_sensitivities = run_cases_expand[run_cases_expand.ProductClass.notnull()].copy()
