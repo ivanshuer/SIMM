@@ -40,19 +40,17 @@ def build_concentration_risk(pos_gp, params, margin):
         CR = pos_gp_CR['CR'].values
 
     elif risk_class in ['CreditQ', 'CreditNonQ']:
+        pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
+        pos_gp_CR.reset_index(inplace=True)
+        pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / d['CR_THR'])), axis=1)
+        CR = pos_gp_CR['CR'].values
+
         if risk_class == 'CreditQ':
-            Tb = params.CreditQ_Threshold
             curves = params.CreditQ_Tenor
         elif risk_class == 'CreditNonQ':
-            Tb = params.CreditNonQ_Threshold
             curves = params.CreditNonQ_Tenor
 
-        pos_qualifier_gp = pos_gp.groupby(['Qualifier'])
-        pos_qualifier_gp = pos_qualifier_gp.agg({'AmountUSD': np.sum})
-        pos_qualifier_gp.reset_index(inplace=True)
-
-        CR = pos_qualifier_gp.AmountUSD.apply(f)
-        CR = np.repeat(CR.values, len(curves))
+        CR = np.repeat(CR, len(curves))
 
     else:
         if risk_class == 'Equity':
@@ -225,6 +223,8 @@ def build_bucket_correlation(pos_delta, params, margin):
 
 def build_non_residual_S(pos_gp, params):
     risk_class = pos_gp.RiskClass.unique()[0]
+    # pos_gp has all 0 index, so has to reset for loop works
+    pos_gp.reset_index(inplace=True)
 
     if risk_class == 'IR':
         S = pos_gp.S

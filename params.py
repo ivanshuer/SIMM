@@ -44,16 +44,15 @@ CreditQ_Tenor = ['1y', '2y', '3y', '5y', '10y']
 CreditQ_CR_Sov_incl_Central_Banks = ['1', '7']
 CreditQ_CR_Corp_Entities = ['2', '3', '4', '5', '6', '8', '9', '10', '11', '12']
 CreditQ_CR_Not_Classified = ['Residual']
-CreditQ_CR_Delta_Sov_incl_Central_Banks = 1.0e6
-CreditQ_CR_Delta_Corp_Entities = 0.36e6
-CreditQ_CR_Delta_Not_Classified = 0.36e6
-CreditQ_CR_Vega = 210e6
-CreditQ_Weights = pd.read_csv('{0}/creditq_weights_params.csv'.format(config_folder))
+#CreditQ_Weights = pd.read_csv('{0}/creditq_weights_params.csv'.format(config_folder))
+CreditQ_Weights = configs.parse('CreditQ_weights', converters={'bucket': str})
 CreditQ_Rho_Agg_Same_IS = 0.98
 CreditQ_Rho_Agg_Diff_IS = 0.55
 CreditQ_Rho_Res_Same_IS = 0.5
 CreditQ_Rho_Res_Diff_IS = 0.5
-CreditQ_Corr = pd.read_csv('{0}/creditq_correlation_params.csv'.format(config_folder))
+#CreditQ_Corr = pd.read_csv('{0}/creditq_correlation_params.csv'.format(config_folder))
+CreditQ_Corr = configs.parse('CreditQ_correlation')
+CreditQ_CR_Thrd = configs.parse('CreditQ_CR_THR')
 CreditQ_VRW = 0.35
 
 CreditNonQ_Bucket = ['1', '2', 'Residual']
@@ -99,5 +98,5 @@ FX_Rho = 0.5
 FX_VRW = 0.21
 FX_Significantly_Material = ['USD', 'EUR', 'JPY', 'GBP', 'AUD', 'CHF', 'CAD']
 FX_Frequently_Traded = ['BRL', 'CNY', 'HKD', 'INR', 'KRW', 'MXN', 'NOK', 'NZD', 'RUB', 'SEK', 'SGD', 'TRY', 'ZAR']
-FX_CR_THR = configs.parse('FX_CR_THR')
+FX_CR_Thrd = configs.parse('FX_CR_THR')
 

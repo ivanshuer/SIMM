@@ -151,19 +151,19 @@ class DeltaMargin(object):
         else:
             if risk_class == 'CreditQ':
                 weights = params.CreditQ_Weights
-                num_factors = len(pos_gp.Qualifier) * len(params.CreditQ_Tenor)
+                num_factors = pos_gp.Qualifier.nunique() * len(params.CreditQ_Tenor)
             elif risk_class == 'CreditNonQ':
                 weights = params.CreditNonQ_Weights
-                num_factors = len(pos_gp.Qualifier) * len(params.CreditNonQ_Tenor)
+                num_factors = pos_gp.Qualifier.nunique() * len(params.CreditNonQ_Tenor)
             elif risk_class == 'Equity':
                 weights = params.Equity_Weights
-                num_factors = len(pos_gp.Qualifier)
+                num_factors = pos_gp.Qualifier.nunique()
             elif risk_class == 'Commodity':
                 weights = params.Commodity_Weights
-                num_factors = len(pos_gp.Qualifier)
+                num_factors = pos_gp.Qualifier.nunique()
             elif risk_class == 'FX':
                 weights = params.FX_Weights
-                num_factors = len(pos_gp.Qualifier)
+                num_factors = pos_gp.Qualifier.nunique()
 
             if risk_class != 'FX':
                 bucket = pd.DataFrame(pos_gp.Bucket.unique(), columns=['bucket'])
@@ -186,6 +186,15 @@ class DeltaMargin(object):
                 risk_group = 'Regular volatility, well-traded'
             else:
                 risk_group = 'High volatility'
+
+        elif gp['RiskClass'] == 'CreditQ':
+            if gp['Bucket'] in params.CreditQ_CR_Sov_incl_Central_Banks:
+                risk_group = 'Sovereigns including central banks'
+            elif gp['Bucket'] in params.CreditQ_CR_Corp_Entities:
+                risk_group = 'Corporate entities'
+            elif gp['Bucket'] in params.CreditQ_CR_Not_Classified:
+                risk_group = 'Not classified'
+
         elif gp['RiskClass'] == 'FX':
             if gp['Qualifier'] in params.FX_Significantly_Material:
                 risk_group = 'C1'
@@ -205,8 +214,11 @@ class DeltaMargin(object):
         if risk_group == 'IR':
             thrd = params.IR_CR_Thrd[params.IR_CR_Thrd.Type == 'Delta'].copy()
 
+        elif risk_group == 'CreditQ':
+            thrd = params.CreditQ_CR_Thrd[params.CreditQ_CR_Thrd.Type == 'Delta'].copy()
+
         elif risk_group == 'FX':
-            thrd = params.FX_CR_THR[params.FX_CR_THR.Type == 'Delta'].copy()
+            thrd = params.FX_CR_Thrd[params.FX_CR_Thrd.Type == 'Delta'].copy()
 
         gp = pd.merge(gp, thrd[['Risk_Group', 'CR_THR']], how='left')
 
