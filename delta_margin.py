@@ -219,6 +219,14 @@ class DeltaMargin(object):
             elif gp['Bucket'] in params.CreditQ_CR_Not_Classified:
                 risk_group = 'Not classified'
 
+        elif gp['RiskClass'] == 'CreditNonQ':
+            if gp['Bucket'] in params.CreditNonQ_CR_IG:
+                risk_group = 'IG (RMBS and CMBS)'
+            elif gp['Bucket'] in params.CreditNonQ_CR_HY_Non_Rated:
+                risk_group = 'HY/Non-rated (RMBS and CMBS)'
+            elif gp['Bucket'] in params.CreditNonQ_CR_Not_Classified:
+                risk_group = 'Not classified'
+
         elif gp['RiskClass'] == 'FX':
             if gp['Qualifier'] in params.FX_Significantly_Material:
                 risk_group = 'C1'
@@ -240,6 +248,9 @@ class DeltaMargin(object):
 
         elif risk_group == 'CreditQ':
             thrd = params.CreditQ_CR_Thrd[params.CreditQ_CR_Thrd.Type == 'Delta'].copy()
+
+        elif risk_group == 'CreditNonQ':
+            thrd = params.CreditNonQ_CR_Thrd[params.CreditNonQ_CR_Thrd.Type == 'Delta'].copy()
 
         elif risk_group == 'FX':
             thrd = params.FX_CR_Thrd[params.FX_CR_Thrd.Type == 'Delta'].copy()

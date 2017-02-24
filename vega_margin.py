@@ -88,6 +88,8 @@ class VegaMargin(object):
         else:
             if risk_class == 'CreditQ':
                 tenors = params.CreditQ_Tenor
+            if risk_class == 'CreditNonQ':
+                tenors = params.CreditNonQ_Tenor
             elif risk_class == 'Equity':
                 tenors = params.Equity_Tenor
             elif risk_class == 'Commodity':
@@ -138,6 +140,9 @@ class VegaMargin(object):
         elif gp['RiskClass'] == 'CreditQ':
             risk_group = 'Qualifying'
 
+        elif gp['RiskClass'] == 'CreditNonQ':
+            risk_group = 'Non Qualifying'
+
         elif gp['RiskClass'] == 'FX':
             curr1 = gp['Qualifier'][0:3]
             curr2 = gp['Qualifier'][3:6]
@@ -165,6 +170,9 @@ class VegaMargin(object):
 
         elif risk_group == 'CreditQ':
             thrd = params.CreditQ_CR_Thrd[params.CreditQ_CR_Thrd.Type == 'Vega'].copy()
+
+        elif risk_group == 'CreditNonQ':
+            thrd = params.CreditNonQ_CR_Thrd[params.CreditNonQ_CR_Thrd.Type == 'Vega'].copy()
 
         elif risk_group == 'FX':
             thrd = params.FX_CR_Thrd[params.FX_CR_Thrd.Type == 'Vega'].copy()

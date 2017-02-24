@@ -10,13 +10,13 @@ RiskType = ['IR', 'CreditQ', 'CreditNonQ', 'Equity', 'Commodity', 'FX']
 
 IR = ['Risk_IRCurve', 'Risk_IRVol', 'Risk_Inflation']
 CreditQ = ['Risk_CreditQ', 'Risk_CreditVol']
-CreditNonQ = ['Risk_CreditNonQ', 'Risk_CreditNonQVol']
+CreditNonQ = ['Risk_CreditNonQ', 'Risk_CreditVolNonQ']
 Equity = ['Risk_Equity', 'Risk_EquityVol']
 FX = ['Risk_FX', 'Risk_FXVol']
 Commodity = ['Risk_Commodity', 'Risk_CommodityVol']
 
 Delta_Factor = ['Risk_IRCurve', 'Risk_Inflation', 'Risk_CreditQ', 'Risk_CreditNonQ', 'Risk_Equity', 'Risk_FX', 'Risk_Commodity']
-Vega_Factor = ['Risk_IRVol', 'Risk_CreditVol', 'Risk_EquityVol', 'Risk_FXVol', 'Risk_CommodityVol']
+Vega_Factor = ['Risk_IRVol', 'Risk_CreditVol', 'Risk_CreditVolNonQ', 'Risk_EquityVol', 'Risk_FXVol', 'Risk_CommodityVol']
 Curvature_Factor = Vega_Factor
 #Curvature_Factor = ['Risk_IRCV', 'Risk_CreditCV', 'Risk_EquityCV', 'Risk_FXCV', 'Risk_CommodityCV']
 
@@ -44,13 +44,11 @@ CreditQ_Tenor = ['1y', '2y', '3y', '5y', '10y']
 CreditQ_CR_Sov_incl_Central_Banks = ['1', '7']
 CreditQ_CR_Corp_Entities = ['2', '3', '4', '5', '6', '8', '9', '10', '11', '12']
 CreditQ_CR_Not_Classified = ['Residual']
-#CreditQ_Weights = pd.read_csv('{0}/creditq_weights_params.csv'.format(config_folder))
 CreditQ_Weights = configs.parse('CreditQ_weights', converters={'bucket': str})
 CreditQ_Rho_Agg_Same_IS = 0.98
 CreditQ_Rho_Agg_Diff_IS = 0.55
 CreditQ_Rho_Res_Same_IS = 0.5
 CreditQ_Rho_Res_Diff_IS = 0.5
-#CreditQ_Corr = pd.read_csv('{0}/creditq_correlation_params.csv'.format(config_folder))
 CreditQ_Corr = configs.parse('CreditQ_correlation')
 CreditQ_CR_Thrd = configs.parse('CreditQ_CR_THR')
 CreditQ_VRW = 0.35
@@ -58,13 +56,16 @@ CreditQ_num_sec_type = 2
 
 CreditNonQ_Bucket = ['1', '2', 'Residual']
 CreditNonQ_Tenor = ['1y', '2y', '3y', '5y', '10y']
-CreditNonQ_Threshold = 1.0
-CreditNonQ_Weights = pd.read_csv('{0}/creditnonq_weights_params.csv'.format(config_folder))
+CreditNonQ_CR_IG = ['1']
+CreditNonQ_CR_HY_Non_Rated = ['2']
+CreditNonQ_CR_Not_Classified = ['Residual']
+CreditNonQ_Weights = configs.parse('CreditNonQ_weights', converters={'bucket': str})
 CreditNonQ_Rho_Agg_Same_IS = 0.6
 CreditNonQ_Rho_Agg_Diff_IS = 0.21
 CreditNonQ_Rho_Res_Same_IS = 0.5
 CreditNonQ_Rho_Res_Diff_IS = 0.5
-CreditNonQ_Corr = pd.read_csv('{0}/creditnonq_correlation_params.csv'.format(config_folder))
+CreditNonQ_Corr = configs.parse('CreditNonQ_correlation')
+CreditNonQ_CR_Thrd = configs.parse('CreditNonQ_CR_THR')
 CreditNonQ_VRW = 0.35
 
 Equity_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']
