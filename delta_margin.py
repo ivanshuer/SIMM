@@ -36,7 +36,10 @@ class DeltaMargin(object):
 
         if risk_class == 'IR':
             factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'Label2', 'RiskClass']
-        elif risk_class in ['CreditQ', 'CreditNonQ']:
+        elif risk_class == 'CreditQ':
+            pos.ix[pos.Label2.isnull(), 'Label2'] = 'Non_Sec'
+            factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'Label2', 'RiskClass']
+        elif risk_class == 'CreditNonQ':
             factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'RiskClass']
         elif risk_class in ['Equity', 'Commodity']:
             factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'RiskClass']
@@ -102,12 +105,33 @@ class DeltaMargin(object):
             if len(pos_inflation) > 0:
                 s[len(s) - 1] = pos_inflation.AmountUSD
 
-        elif risk_class in ['CreditQ', 'CreditNonQ']:
+        elif risk_class == 'CreditQ':
+            tenors = params.CreditQ_Tenor
 
-            if risk_class == 'CreditQ':
-                tenors = params.CreditQ_Tenor
-            else:
-                tenors = params.CreditNonQ_Tenor
+            # 2 for securitization
+            s = np.zeros(pos_gp.Qualifier.nunique() * params.CreditQ_num_sec_type * len(tenors))
+
+            pos_gp.sort_values(['Qualifier', 'Label2'], inplace=True, ascending=True)
+
+            for j in range(pos_gp.Qualifier.nunique()):
+                pos_gp_qualifier = pos_gp[pos_gp.Qualifier == pos_gp.Qualifier.unique()[j]].copy()
+
+                pos_gp_qualifier_non_sec = pos_gp_qualifier[pos_gp_qualifier.Label2 == 'Non_Sec'].copy()
+
+                for i, row in pos_gp_qualifier_non_sec.iterrows():
+                    idx = self.find_factor_idx(row['Label1'], [], tenors, [], risk_class)
+                    if idx >= 0:
+                        s[idx + j * len(tenors) * params.CreditQ_num_sec_type] = row['AmountUSD']
+
+                pos_gp_qualifier_sec = pos_gp_qualifier[pos_gp_qualifier.Label2 == 'Sec'].copy()
+
+                for i, row in pos_gp_qualifier_sec.iterrows():
+                    idx = self.find_factor_idx(row['Label1'], [], tenors, [], risk_class)
+                    if idx >= 0:
+                        s[idx + j * len(tenors) * params.CreditQ_num_sec_type + len(tenors)] = row['AmountUSD']
+
+        elif risk_class == 'CreditNonQ':
+            tenors = params.CreditNonQ_Tenor
 
             s = np.zeros(pos_gp.Qualifier.nunique() * len(tenors))
 
@@ -151,7 +175,7 @@ class DeltaMargin(object):
         else:
             if risk_class == 'CreditQ':
                 weights = params.CreditQ_Weights
-                num_factors = pos_gp.Qualifier.nunique() * len(params.CreditQ_Tenor)
+                num_factors = pos_gp.Qualifier.nunique() * len(params.CreditQ_Tenor) * params.CreditQ_num_sec_type
             elif risk_class == 'CreditNonQ':
                 weights = params.CreditNonQ_Weights
                 num_factors = pos_gp.Qualifier.nunique() * len(params.CreditNonQ_Tenor)

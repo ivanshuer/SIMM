@@ -54,6 +54,7 @@ CreditQ_Rho_Res_Diff_IS = 0.5
 CreditQ_Corr = configs.parse('CreditQ_correlation')
 CreditQ_CR_Thrd = configs.parse('CreditQ_CR_THR')
 CreditQ_VRW = 0.35
+CreditQ_num_sec_type = 2
 
 CreditNonQ_Bucket = ['1', '2', 'Residual']
 CreditNonQ_Tenor = ['1y', '2y', '3y', '5y', '10y']

@@ -387,13 +387,18 @@ def margin_risk_factor(pos, params, margin_loader):
             delta_margin = max(lambda_const * delta_margin + pos_delta_non_residual.CVR_sum.sum(), 0)
 
     if len(pos_delta_residual) > 0:
+        K = pos_delta_residual.K.values[0]
+
         if margin_loader.margin_type() == 'Curvature':
-            theta = min(pos_delta_residual.CVR_sum / pos_delta_residual.CVR_abs_sum, 0)
+            CVR_sum = pos_delta_residual.CVR_sum.values[0]
+            CVR_abs_sum = pos_delta_residual.CVR_abs_sum.values[0]
+
+            theta = min(CVR_sum / CVR_abs_sum, 0)
             lambda_const = (pow(norm.ppf(0.995), 2) - 1) * (1 + theta) - theta
 
-            delta_margin = delta_margin + max(pos_delta_residual.CVR_sum + lambda_const * pos_delta_residual.K, 0)
+            delta_margin = delta_margin + max(CVR_sum + lambda_const * K, 0)
         else:
-            delta_margin = delta_margin + pos_delta_residual.K
+            delta_margin = delta_margin + K
 
     if margin_loader.margin_type() == 'Curvature' and risk_class == 'IR':
         delta_margin = delta_margin * params.IR_Curvature_Margin_Scale

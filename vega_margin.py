@@ -134,6 +134,10 @@ class VegaMargin(object):
                 risk_group = 'Regular volatility, well-traded'
             else:
                 risk_group = 'High volatility'
+
+        elif gp['RiskClass'] == 'CreditQ':
+            risk_group = 'Qualifying'
+
         elif gp['RiskClass'] == 'FX':
             curr1 = gp['Qualifier'][0:3]
             curr2 = gp['Qualifier'][3:6]
@@ -159,8 +163,11 @@ class VegaMargin(object):
         if risk_group == 'IR':
             thrd = params.IR_CR_Thrd[params.IR_CR_Thrd.Type == 'Vega'].copy()
 
+        elif risk_group == 'CreditQ':
+            thrd = params.CreditQ_CR_Thrd[params.CreditQ_CR_Thrd.Type == 'Vega'].copy()
+
         elif risk_group == 'FX':
-            thrd = params.FX_CR_THR[params.FX_CR_THR.Type == 'Vega'].copy()
+            thrd = params.FX_CR_Thrd[params.FX_CR_Thrd.Type == 'Vega'].copy()
 
         gp = pd.merge(gp, thrd[['Risk_Group', 'CR_THR']], how='left')
 

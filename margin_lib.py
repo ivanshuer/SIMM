@@ -46,11 +46,16 @@ def build_concentration_risk(pos_gp, params, margin):
         CR = pos_gp_CR['CR'].values
 
         if risk_class == 'CreditQ':
-            curves = params.CreditQ_Tenor
-        elif risk_class == 'CreditNonQ':
-            curves = params.CreditNonQ_Tenor
+            tenors = params.CreditQ_Tenor
+        else:
+            tenors = params.CreditNonQ_Tenor
 
-        CR = np.repeat(CR, len(curves))
+        if risk_class == 'CreditQ' and margin == 'Delta':
+            num_factors = len(tenors) * params.CreditQ_num_sec_type
+        else:
+            num_factors = len(tenors)
+
+        CR = np.repeat(CR, num_factors)
 
     else:
         if risk_class == 'Equity':
@@ -160,7 +165,10 @@ def build_in_bucket_correlation(pos_gp, params, margin, CR):
             rho = np.ones((num_qualifiers, num_qualifiers)) * diff_is_rho
             np.fill_diagonal(rho, same_is_rho)
 
-            one_mat = np.ones((len(tenors), len(tenors)))
+            if risk_class == 'CreditQ' and margin == 'Delta':
+                one_mat = np.ones((len(tenors) * params.CreditQ_num_sec_type, len(tenors) * params.CreditQ_num_sec_type))
+            else:
+                one_mat = np.ones((len(tenors), len(tenors)))
             rho = np.kron(rho, one_mat)
 
         elif risk_class in ['Equity', 'Commodity']:
