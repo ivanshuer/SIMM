@@ -227,6 +227,20 @@ class DeltaMargin(object):
             elif gp['Bucket'] in params.CreditNonQ_CR_Not_Classified:
                 risk_group = 'Not classified'
 
+        elif gp['RiskClass'] == 'Equity':
+            if gp['Bucket'] in params.Equity_CR_Emerging_Large_Cap:
+                risk_group = 'Emerging Markets - Large Cap'
+            elif gp['Bucket'] in params.Equity_CR_Developed_Large_Cap:
+                risk_group = 'Developed Markets - Large Cap'
+            elif gp['Bucket'] in params.Equity_CR_Emerging_Small_Cap:
+                risk_group = 'Emerging Markets - Small Cap'
+            elif gp['Bucket'] in params.Equity_CR_Developed_Small_Cap:
+                risk_group = 'Developed Markets - Small Cap'
+            elif gp['Bucket'] in params.Equity_CR_Index_Funds_ETF:
+                risk_group = 'Indexeds, Funds, ETFs'
+            elif gp['Bucket'] in params.Equity_CR_Not_Classified:
+                risk_group = 'Not classified'
+
         elif gp['RiskClass'] == 'FX':
             if gp['Qualifier'] in params.FX_Significantly_Material:
                 risk_group = 'C1'
@@ -251,6 +265,9 @@ class DeltaMargin(object):
 
         elif risk_group == 'CreditNonQ':
             thrd = params.CreditNonQ_CR_Thrd[params.CreditNonQ_CR_Thrd.Type == 'Delta'].copy()
+
+        elif risk_group == 'Equity':
+            thrd = params.Equity_CR_Thrd[params.Equity_CR_Thrd.Type == 'Delta'].copy()
 
         elif risk_group == 'FX':
             thrd = params.FX_CR_Thrd[params.FX_CR_Thrd.Type == 'Delta'].copy()

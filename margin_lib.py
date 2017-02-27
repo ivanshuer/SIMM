@@ -59,17 +59,16 @@ def build_concentration_risk(pos_gp, params, margin):
 
     else:
         if risk_class == 'Equity':
-            if bucket in params.Equity_EM:
-                Tb = params.Equity_EM_Threshold
-            elif bucket in params.Equity_DEVELOPED:
-                Tb = params.Equity_DEVELOPED_Threshold
-            elif bucket in params.Equity_INDEX:
-                Tb = params.Equity_INDEX_Threshold
+            pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
+            pos_gp_CR.reset_index(inplace=True)
+            pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / d['CR_THR'])), axis=1)
+
+            pos_gp_CR = pd.merge(pos_gp, pos_gp_CR[['Qualifier', 'Risk_Group', 'CR']], how='left')
+            CR = pos_gp_CR['CR']
 
             if margin == 'Vega' or margin == 'Curvature':
                 tenors = params.Equity_Tenor
 
-            CR = pos_gp.AmountUSD.apply(f)
         elif risk_class == 'Commodity':
             if bucket in params.Commodity_FUEL:
                 Tb = params.Commodity_FUEL_Threshold
@@ -88,7 +87,6 @@ def build_concentration_risk(pos_gp, params, margin):
             pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / d['CR_THR'])), axis=1)
 
             pos_gp_CR = pd.merge(pos_gp, pos_gp_CR[['Qualifier', 'Risk_Group', 'CR']], how='left')
-
             CR = pos_gp_CR['CR']
 
             if margin == 'Vega' or margin == 'Curvature':

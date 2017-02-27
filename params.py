@@ -70,15 +70,16 @@ CreditNonQ_VRW = 0.35
 
 Equity_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']
 Equity_Bucket = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', 'Residual']
-Equity_EM = ['1', '2', '3', '4', '9']
-Equity_DEVELOPED = ['5', '6', '7', '8', '10']
-Equity_INDEX = ['11']
-Equity_EM_Threshold = 1.0
-Equity_DEVELOPED_Threshold = 1.0
-Equity_INDEX_Threshold = 1.0
-Equity_Weights = pd.read_csv('{0}/equity_weights_params.csv'.format(config_folder))
-Equity_Rho = pd.read_csv('{0}/equity_in_bucket_correlation_params.csv'.format(config_folder))
-Equity_Corr = pd.read_csv('{0}/equity_correlation_params.csv'.format(config_folder))
+Equity_CR_Emerging_Large_Cap = ['1', '2', '3', '4']
+Equity_CR_Developed_Large_Cap = ['5', '6', '7', '8']
+Equity_CR_Emerging_Small_Cap = ['9']
+Equity_CR_Developed_Small_Cap = ['10']
+Equity_CR_Index_Funds_ETF = ['11']
+Equity_CR_Not_Classified = ['Residual']
+Equity_Weights = configs.parse('Equity_weights', converters={'bucket': str})
+Equity_Rho = configs.parse('Equity_in_bucket_correlation', converters={'bucket': str})
+Equity_Corr = configs.parse('Equity_correlation')
+Equity_CR_Thrd = configs.parse('Equity_CR_THR')
 Equity_VRW = 0.21
 
 Commodity_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']

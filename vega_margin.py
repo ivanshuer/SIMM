@@ -58,7 +58,17 @@ class VegaMargin(object):
         pos_vega = pos_gp.agg({'AmountUSD': np.sum})
         pos_vega.reset_index(inplace=True)
 
-        if risk_class in ['Euqity', 'FX', 'Commodity']:
+        if risk_class == 'Equity':
+            bucket = pd.DataFrame(pos_vega.Bucket.unique(), columns=['bucket'])
+            RW = pd.merge(bucket, params.Equity_Weights, left_on=['bucket'], right_on=['bucket'], how='inner')
+            pos_vega['AmountUSD'] = pos_vega['AmountUSD'] * RW.weight.values[0] * math.sqrt(365.0 / 14) / norm.ppf(0.99)
+
+        elif risk_class == 'Commodity':
+            bucket = pd.DataFrame(pos_vega.Bucket.unique(), columns=['bucket'])
+            RW = pd.merge(bucket, params.Commodity_Weights, left_on=['bucket'], right_on=['bucket'], how='inner')
+            pos_vega['AmountUSD'] = pos_vega['AmountUSD'] * RW.weight.values[0] * math.sqrt(365.0 / 14) / norm.ppf(0.99)
+
+        elif risk_class == 'FX':
             pos_vega['AmountUSD'] = pos_vega['AmountUSD'] * params.FX_Weights * math.sqrt(365.0 / 14) / norm.ppf(0.99)
 
         return pos_vega
@@ -143,6 +153,20 @@ class VegaMargin(object):
         elif gp['RiskClass'] == 'CreditNonQ':
             risk_group = 'Non Qualifying'
 
+        elif gp['RiskClass'] == 'Equity':
+            if gp['Bucket'] in params.Equity_CR_Emerging_Large_Cap:
+                risk_group = 'Emerging Markets - Large Cap'
+            elif gp['Bucket'] in params.Equity_CR_Developed_Large_Cap:
+                risk_group = 'Developed Markets - Large Cap'
+            elif gp['Bucket'] in params.Equity_CR_Emerging_Small_Cap:
+                risk_group = 'Emerging Markets - Small Cap'
+            elif gp['Bucket'] in params.Equity_CR_Developed_Small_Cap:
+                risk_group = 'Developed Markets - Small Cap'
+            elif gp['Bucket'] in params.Equity_CR_Index_Funds_ETF:
+                risk_group = 'Indexeds, Funds, ETFs'
+            elif gp['Bucket'] in params.Equity_CR_Not_Classified:
+                risk_group = 'Not classified'
+
         elif gp['RiskClass'] == 'FX':
             curr1 = gp['Qualifier'][0:3]
             curr2 = gp['Qualifier'][3:6]
@@ -173,6 +197,9 @@ class VegaMargin(object):
 
         elif risk_group == 'CreditNonQ':
             thrd = params.CreditNonQ_CR_Thrd[params.CreditNonQ_CR_Thrd.Type == 'Vega'].copy()
+
+        elif risk_group == 'Equity':
+            thrd = params.Equity_CR_Thrd[params.Equity_CR_Thrd.Type == 'Vega'].copy()
 
         elif risk_group == 'FX':
             thrd = params.FX_CR_Thrd[params.FX_CR_Thrd.Type == 'Vega'].copy()
