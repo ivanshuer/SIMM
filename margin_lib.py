@@ -66,9 +66,6 @@ def build_concentration_risk(pos_gp, params, margin):
             pos_gp_CR = pd.merge(pos_gp, pos_gp_CR[['Qualifier', 'Risk_Group', 'CR']], how='left')
             CR = pos_gp_CR['CR']
 
-            if margin == 'Vega' or margin == 'Curvature':
-                tenors = params.Equity_Tenor
-
         elif risk_class == 'Commodity':
             if bucket in params.Commodity_FUEL:
                 Tb = params.Commodity_FUEL_Threshold
@@ -89,13 +86,7 @@ def build_concentration_risk(pos_gp, params, margin):
             pos_gp_CR = pd.merge(pos_gp, pos_gp_CR[['Qualifier', 'Risk_Group', 'CR']], how='left')
             CR = pos_gp_CR['CR']
 
-            if margin == 'Vega' or margin == 'Curvature':
-                tenors = params.FX_Tenor
-
         CR = CR.values
-
-        if margin == 'Vega' or margin == 'Curvature':
-            CR = np.repeat(CR, len(tenors))
 
     return CR
 

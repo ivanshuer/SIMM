@@ -46,30 +46,30 @@ class VegaMargin(object):
     def net_sensitivities(self, pos, params):
         risk_class = pos.RiskClass.unique()[0]
 
+        if risk_class == 'Equity':
+            pos = pd.merge(pos, params.Equity_Weights, left_on=['Bucket'], right_on=['bucket'], how='inner')
+            pos['AmountUSD'] = pos['AmountUSD'] * pos['weight'] * math.sqrt(365.0 / 14) / norm.ppf(0.99)
+            pos.drop(['bucket', 'weight'], axis=1, inplace=True)
+        elif risk_class == 'Commodity':
+            pos = pd.merge(pos, params.Commodity_Weights, left_on=['Bucket'], right_on=['bucket'], how='inner')
+            pos['AmountUSD'] = pos['AmountUSD'] * pos['weight'] * math.sqrt(365.0 / 14) / norm.ppf(0.99)
+            pos.drop(['bucket', 'weight'], axis=1, inplace=True)
+        elif risk_class == 'FX':
+            pos['AmountUSD'] = pos['AmountUSD'] * params.FX_Weights * math.sqrt(365.0 / 14) / norm.ppf(0.99)
+
         if risk_class == 'IR':
             factor_group = ['CombinationID','ProductClass', 'RiskType', 'Qualifier', 'Label1', 'RiskClass']
         elif risk_class == 'FX':
             pos = pos.apply(self.change_FX_ticker_order, axis=1)
             factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'Label1', 'RiskClass']
-        elif risk_class in ['CreditQ', 'CreditNonQ', 'Equity', 'Commodity']:
+        elif risk_class in ['CreditQ', 'CreditNonQ']:
             factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'Label1', 'RiskClass']
+        elif risk_class in ['Equity', 'Commodity']:
+            factor_group = ['CombinationID', 'ProductClass', 'RiskType', 'Qualifier', 'Bucket', 'RiskClass']
 
         pos_gp = pos.groupby(factor_group)
         pos_vega = pos_gp.agg({'AmountUSD': np.sum})
         pos_vega.reset_index(inplace=True)
-
-        if risk_class == 'Equity':
-            bucket = pd.DataFrame(pos_vega.Bucket.unique(), columns=['bucket'])
-            RW = pd.merge(bucket, params.Equity_Weights, left_on=['bucket'], right_on=['bucket'], how='inner')
-            pos_vega['AmountUSD'] = pos_vega['AmountUSD'] * RW.weight.values[0] * math.sqrt(365.0 / 14) / norm.ppf(0.99)
-
-        elif risk_class == 'Commodity':
-            bucket = pd.DataFrame(pos_vega.Bucket.unique(), columns=['bucket'])
-            RW = pd.merge(bucket, params.Commodity_Weights, left_on=['bucket'], right_on=['bucket'], how='inner')
-            pos_vega['AmountUSD'] = pos_vega['AmountUSD'] * RW.weight.values[0] * math.sqrt(365.0 / 14) / norm.ppf(0.99)
-
-        elif risk_class == 'FX':
-            pos_vega['AmountUSD'] = pos_vega['AmountUSD'] * params.FX_Weights * math.sqrt(365.0 / 14) / norm.ppf(0.99)
 
         return pos_vega
 
@@ -95,17 +95,11 @@ class VegaMargin(object):
                 idx = self.find_factor_idx(row['Label1'], params.IR_Tenor)
                 if idx >= 0:
                     s[idx] = row['AmountUSD']
-        else:
+        elif risk_class in ['CreditQ', 'CreditNonQ']:
             if risk_class == 'CreditQ':
                 tenors = params.CreditQ_Tenor
             if risk_class == 'CreditNonQ':
                 tenors = params.CreditNonQ_Tenor
-            elif risk_class == 'Equity':
-                tenors = params.Equity_Tenor
-            elif risk_class == 'Commodity':
-                tenors = params.Commodity_Tenor
-            elif risk_class == 'FX':
-                tenors = params.FX_Tenor
 
             s = np.zeros(pos_gp.Qualifier.nunique() * len(tenors))
 
@@ -116,6 +110,12 @@ class VegaMargin(object):
                     idx = self.find_factor_idx(row['Label1'], tenors)
                     if idx >= 0:
                         s[idx + j * len(tenors)] = row['AmountUSD']
+        else:
+            s = np.zeros(pos_gp.Qualifier.nunique())
+
+            for i, row in pos_gp.iterrows():
+                s[i] = row['AmountUSD']
+
         return s
 
     def build_risk_weights(self, pos_gp, params):

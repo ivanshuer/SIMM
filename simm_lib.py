@@ -49,19 +49,6 @@ def prep_output_directory(params):
     if os.path.exists(output_path):
         os.remove(output_path)
 
-def read_inputs(config_file):
-
-    configs = pd.ExcelFile(config_file)
-
-    inputs = {}
-
-    ir_params = {}
-    ir_params['weights'] = configs.parse('IR_weights', converters={'curr': str})
-
-    inputs['IR'] = ir_params
-
-    return inputs
-
 def risk_classification(trades_pos, params):
     """Risk class classification in terms of RiskType"""
 
@@ -440,7 +427,6 @@ def calculate_in_product_margin(pos_gp, params):
         pos_product_margin = pd.concat(pos_product_margin)
 
     return pos_product_margin
-
 
 def calculate_simm(pos, params):
 
