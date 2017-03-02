@@ -24,13 +24,6 @@ if not len(logger.handlers):
 
 def build_concentration_risk(pos_gp, params, margin):
     risk_class = pos_gp.RiskClass.unique()[0]
-    if risk_class not in ['IR', 'FX']:
-        bucket = pos_gp.Bucket.unique()[0]
-
-    #f = lambda x: max(1, math.sqrt(abs(x) / Tb))
-    f = lambda x: 100
-    if margin == 'Vega' or margin == 'Curvature':
-        f = lambda x: 1
 
     if risk_class == 'IR':
         pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
@@ -67,17 +60,13 @@ def build_concentration_risk(pos_gp, params, margin):
             CR = pos_gp_CR['CR']
 
         elif risk_class == 'Commodity':
-            if bucket in params.Commodity_FUEL:
-                Tb = params.Commodity_FUEL_Threshold
-            elif bucket in params.Commodity_POWER:
-                Tb = params.Commodity_POWER_Threshold
-            elif bucket in params.Commodity_OTHER:
-                Tb = params.Commodity_OTHER_Threshold
+            pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
+            pos_gp_CR.reset_index(inplace=True)
+            pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / d['CR_THR'])), axis=1)
 
-            if margin == 'Vega' or margin == 'Curvature':
-                tenors = params.Commodity_Tenor
+            pos_gp_CR = pd.merge(pos_gp, pos_gp_CR[['Qualifier', 'Risk_Group', 'CR']], how='left')
+            CR = pos_gp_CR['CR']
 
-            CR = pos_gp.AmountUSD.apply(f)
         elif risk_class == 'FX':
             pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
             pos_gp_CR.reset_index(inplace=True)

@@ -167,6 +167,40 @@ class VegaMargin(object):
             elif gp['Bucket'] in params.Equity_CR_Not_Classified:
                 risk_group = 'Not classified'
 
+        elif gp['RiskClass'] == 'Commodity':
+            if gp['Bucket'] in params.Commodity_CR_Coal:
+                risk_group = 'Coal'
+            elif gp['Bucket'] in params.Commodity_CR_Crude_Oil:
+                risk_group = 'Crude Oil'
+            elif gp['Bucket'] in params.Commodity_CR_Light_End:
+                risk_group = 'Light ends'
+            elif gp['Bucket'] in params.Commodity_CR_Middle_Distilates:
+                risk_group = 'Middle Distilates'
+            elif gp['Bucket'] in params.Commodity_CR_Heavy_Distilates:
+                risk_group = 'Heavy Distilates'
+            elif gp['Bucket'] in params.Commodity_CR_NA_Natual_Gas:
+                risk_group = 'NA Natural gas'
+            elif gp['Bucket'] in params.Commodity_CR_EU_Natual_Gas:
+                risk_group = 'EU Natual gas'
+            elif gp['Bucket'] in params.Commodity_CR_NA_Power:
+                risk_group = 'NA Power, On-Peak'
+            elif gp['Bucket'] in params.Commodity_CR_EU_Power:
+                risk_group = 'EU Power, On-Peak'
+            elif gp['Bucket'] in params.Commodity_CR_Freight:
+                risk_group = 'Freight, Dry or Wet'
+            elif gp['Bucket'] in params.Commodity_CR_Base_Metals:
+                risk_group = 'Base metals'
+            elif gp['Bucket'] in params.Commodity_CR_Precious_Metals:
+                risk_group = 'Precious Metals'
+            elif gp['Bucket'] in params.Commodity_CR_Grains:
+                risk_group = 'Grains'
+            elif gp['Bucket'] in params.Commodity_CR_Softs:
+                risk_group = 'Softs'
+            elif gp['Bucket'] in params.Commodity_CR_Livestock:
+                risk_group = 'Livestock'
+            elif gp['Bucket'] in params.Commodity_CR_Others:
+                risk_group = 'Other / Diversified Commodity Indices'
+
         elif gp['RiskClass'] == 'FX':
             curr1 = gp['Qualifier'][0:3]
             curr2 = gp['Qualifier'][3:6]
@@ -200,6 +234,9 @@ class VegaMargin(object):
 
         elif risk_group == 'Equity':
             thrd = params.Equity_CR_Thrd[params.Equity_CR_Thrd.Type == 'Vega'].copy()
+
+        elif risk_group == 'Commodity':
+            thrd = params.Commodity_CR_Thrd[params.Commodity_CR_Thrd.Type == 'Vega'].copy()
 
         elif risk_group == 'FX':
             thrd = params.FX_CR_Thrd[params.FX_CR_Thrd.Type == 'Vega'].copy()

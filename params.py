@@ -2,7 +2,7 @@ import pandas as pd
 
 configs = pd.ExcelFile('simm_config.xlsx')
 
-config_folder = 'config'
+#config_folder = 'config'
 
 Product = ['RatesFX', 'Credit', 'Equity', 'Commodity']
 
@@ -20,7 +20,7 @@ Vega_Factor = ['Risk_IRVol', 'Risk_CreditVol', 'Risk_CreditVolNonQ', 'Risk_Equit
 Curvature_Factor = Vega_Factor
 #Curvature_Factor = ['Risk_IRCV', 'Risk_CreditCV', 'Risk_EquityCV', 'Risk_FXCV', 'Risk_CommodityCV']
 
-Risk_Class_Corr = pd.read_csv('{0}/risk_class_correlation_params.csv'.format(config_folder))
+Risk_Class_Corr = configs.parse('Risk_class_correlation')
 
 IR_Bucket = ['1', '2', '3']
 IR_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']
@@ -84,15 +84,26 @@ Equity_VRW = 0.21
 
 Commodity_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']
 Commodity_Bucket = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16']
-Commodity_FUEL = ['1', '2', '3', '4', '5', '6', '7']
-Commodity_POWER = ['8', '9', '10']
-Commodity_OTHER = ['11', '12', '13', '14', '15', '16']
-Commodity_FUEL_Threshold = 1.0
-Commodity_POWER_Threshold = 1.0
-Commodity_OTHER_Threshold = 1.0
-Commodity_Weights = pd.read_csv('{0}/commodity_weights_params.csv'.format(config_folder), dtype={'bucket': str})
-Commodity_Rho = pd.read_csv('{0}/commodity_in_bucket_correlation_params.csv'.format(config_folder), dtype={'bucket': str})
-Commodity_Corr = pd.read_csv('{0}/commodity_correlation_params.csv'.format(config_folder))
+Commodity_CR_Coal = ['1']
+Commodity_CR_Crude_Oil = ['2']
+Commodity_CR_Light_End = ['3']
+Commodity_CR_Middle_Distilates = ['4']
+Commodity_CR_Heavy_Distilates = ['5']
+Commodity_CR_NA_Natual_Gas = ['6']
+Commodity_CR_EU_Natual_Gas = ['7']
+Commodity_CR_NA_Power = ['8']
+Commodity_CR_EU_Power = ['9']
+Commodity_CR_Freight = ['10']
+Commodity_CR_Base_Metals = ['11']
+Commodity_CR_Precious_Metals = ['12']
+Commodity_CR_Grains = ['13']
+Commodity_CR_Softs = ['14']
+Commodity_CR_Livestock = ['15']
+Commodity_CR_Others = ['16']
+Commodity_Weights = configs.parse('Commodity_weights', converters={'bucket': str})
+Commodity_Rho = configs.parse('Commodity_in_bucket_correlation', converters={'bucket': str})
+Commodity_Corr = configs.parse('Commodity_correlation')
+Commodity_CR_Thrd = configs.parse('Commodity_CR_THR')
 Commodity_VRW = 0.36
 
 FX_Tenor = ['2w', '1m', '3m', '6m', '1y', '2y', '3y', '5y', '10y', '15y', '20y', '30y']
