@@ -2,8 +2,6 @@ import pandas as pd
 
 configs = pd.ExcelFile('simm_config.xlsx')
 
-#config_folder = 'config'
-
 Product = ['RatesFX', 'Credit', 'Equity', 'Commodity']
 
 RiskType = ['IR', 'CreditQ', 'CreditNonQ', 'Equity', 'Commodity', 'FX']

@@ -25,17 +25,14 @@ if not len(logger.handlers):
 def build_concentration_risk(pos_gp, params, margin):
     risk_class = pos_gp.RiskClass.unique()[0]
 
-    if risk_class == 'IR':
-        pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
-        pos_gp_CR.reset_index(inplace=True)
+    pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
+    pos_gp_CR.reset_index(inplace=True)
+    pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / d['CR_THR'])), axis=1)
 
-        pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / d['CR_THR'])), axis=1)
+    if risk_class == 'IR':
         CR = pos_gp_CR['CR'].values
 
     elif risk_class in ['CreditQ', 'CreditNonQ']:
-        pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
-        pos_gp_CR.reset_index(inplace=True)
-        pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / d['CR_THR'])), axis=1)
         CR = pos_gp_CR['CR'].values
 
         if risk_class == 'CreditQ':
@@ -51,30 +48,8 @@ def build_concentration_risk(pos_gp, params, margin):
         CR = np.repeat(CR, num_factors)
 
     else:
-        if risk_class == 'Equity':
-            pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
-            pos_gp_CR.reset_index(inplace=True)
-            pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / d['CR_THR'])), axis=1)
-
-            pos_gp_CR = pd.merge(pos_gp, pos_gp_CR[['Qualifier', 'Risk_Group', 'CR']], how='left')
-            CR = pos_gp_CR['CR']
-
-        elif risk_class == 'Commodity':
-            pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
-            pos_gp_CR.reset_index(inplace=True)
-            pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / d['CR_THR'])), axis=1)
-
-            pos_gp_CR = pd.merge(pos_gp, pos_gp_CR[['Qualifier', 'Risk_Group', 'CR']], how='left')
-            CR = pos_gp_CR['CR']
-
-        elif risk_class == 'FX':
-            pos_gp_CR = pos_gp.groupby(['Qualifier', 'Risk_Group']).agg({'AmountUSD': np.sum, 'CR_THR': np.average})
-            pos_gp_CR.reset_index(inplace=True)
-            pos_gp_CR['CR'] = pos_gp_CR.apply(lambda d: max(1, math.sqrt(abs(d['AmountUSD']) / d['CR_THR'])), axis=1)
-
-            pos_gp_CR = pd.merge(pos_gp, pos_gp_CR[['Qualifier', 'Risk_Group', 'CR']], how='left')
-            CR = pos_gp_CR['CR']
-
+        pos_gp_CR = pd.merge(pos_gp, pos_gp_CR[['Qualifier', 'Risk_Group', 'CR']], how='left')
+        CR = pos_gp_CR['CR']
         CR = CR.values
 
     return CR
