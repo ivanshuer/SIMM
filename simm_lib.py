@@ -327,8 +327,25 @@ def margin_risk_factor(pos, params, margin_loader):
     else:
         group = 'Bucket'
 
+    groups = pos_delta[group].unique().tolist()
+    groups.sort()
+
+    if risk_class in ['CreditQ', 'CreditNonQ', 'Equity', 'Commodity']:
+
+        groups_copy = list(groups)
+
+        if 'Residual' in groups:
+            groups.remove('Residual')
+
+        groups = [int(d) for d in groups]
+        groups.sort()
+        groups = [str(d) for d in groups]
+
+        if 'Residual' in groups_copy:
+            groups.append('Residual')
+
     pos_delta_gp_all = []
-    for gp in pos_delta[group].sort_values().unique():
+    for gp in groups:
         pos_delta_gp = pos_delta[pos_delta[group] == gp].copy()
         pos_delta_gp = margin_loader.margin_risk_group(pos_delta_gp, params)
         pos_delta_gp_all.append(pos_delta_gp)
